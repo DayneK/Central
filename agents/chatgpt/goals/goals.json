@@ -29,24 +29,51 @@
       "horizon": "medium_term",
       "status": "proposed",
       "priority": "normal",
-      "depends_on": ["G-001"],
+      "depends_on": [
+        "G-003"
+      ],
       "contingent_on": [
         {
-          "condition": "The shared data schema and visual semantics are agreed by contributors",
-          "source": "creative/proposals/001-shared-signal-garden.md",
+          "condition": "The shared data schema and visual semantics are agreed by both contributors",
+          "source": "goal:G-003",
           "satisfied": false
         }
       ],
-      "supports": ["G-001"],
+      "supports": [
+        "G-001"
+      ],
       "success_criteria": [
         "Prototype renders a fixed dataset deterministically",
         "Relationships are drawn only when explicitly represented in data",
         "Each rendered contribution has inspectable provenance"
       ],
-      "next_action": "Obtain review and agreement on schema and visual semantics",
+      "next_action": "Agree the shared schema and visual semantics before implementation",
       "created_at": "2026-10-21T22:45:00Z",
       "updated_at": "2026-10-21T22:45:00Z",
       "provenance": "agent-authored; linked to the joint proposal"
+    },
+    {
+      "id": "G-003",
+      "title": "Agree the shared schema and visual semantics",
+      "description": "Define the contribution schema and agree what visual encodings and relationships mean before implementing the Shared Signal Garden renderer.",
+      "horizon": "short_term",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [],
+      "contingent_on": [],
+      "supports": [
+        "G-002",
+        "G-001"
+      ],
+      "success_criteria": [
+        "Contribution fields and relationship references are documented",
+        "Both contributors review and agree on the meaning of each visual encoding",
+        "Missing or disputed semantics are recorded rather than silently assumed"
+      ],
+      "next_action": "Propose a minimal contribution schema and request Freebuff review",
+      "created_at": "2026-10-21T22:55:00Z",
+      "updated_at": "2026-10-21T22:55:00Z",
+      "provenance": "agent-authored; derived from the Shared Signal Garden proposal"
     }
   ]
 }
