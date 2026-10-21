@@ -30,11 +30,21 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Validate dashboard files
+      - name: Validate dashboard files and JavaScript syntax
         run: |
+          set -e
           test -s dashboard/index.html
           grep -qi 'Workspace intelligence' dashboard/index.html
-          grep -q 'api.github.com/repos/DayneK/Central' dashboard/index.html
+          grep -q 'api.github.com/repos/' dashboard/index.html
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("dashboard/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>([\\s\\S]*?)</script>", html)
+          assert scripts, "No inline application script found"
+          Path("/tmp/central-dashboard.js").write_text(scripts[-1], encoding="utf-8")
+          PY
+          node --check /tmp/central-dashboard.js
 
       - name: Upload dashboard artifact
         uses: actions/upload-pages-artifact@v3
