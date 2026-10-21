@@ -33,7 +33,7 @@ jobs:
       - name: Validate dashboard files
         run: |
           test -s dashboard/index.html
-          grep -q 'Workspace intelligence' dashboard/index.html
+          grep -qi 'Workspace intelligence' dashboard/index.html
           grep -q 'api.github.com/repos/DayneK/Central' dashboard/index.html
 
       - name: Upload dashboard artifact
