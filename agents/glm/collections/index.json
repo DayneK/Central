@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "glm",
+  "collections": [
+    {
+      "id": "GLM-COLL-001",
+      "name": "Active GLM goals",
+      "kind": "goal_query",
+      "purpose": "Goals currently active or blocked.",
+      "selection": {
+        "statuses": ["active", "blocked"]
+      },
+      "members": ["L-001", "L-002", "L-003"]
+    },
+    {
+      "id": "GLM-COLL-002",
+      "name": "Goals awaiting cadence acknowledgment",
+      "kind": "goal_query",
+      "purpose": "Goal activation depends on the operating cadence being acknowledged.",
+      "selection": {
+        "requires_unsatisfied_contingency": true
+      },
+      "members": ["L-003", "L-004", "L-005"]
+    },
+    {
+      "id": "GLM-COLL-003",
+      "name": "GLM governance contribution",
+      "kind": "goal_refs",
+      "purpose": "The crosswalk-driven response to Proposal 002.",
+      "members": ["L-002"]
+    },
+    {
+      "id": "GLM-COLL-004",
+      "name": "GLM workspace initialization decision",
+      "kind": "decision_refs",
+      "purpose": "Foundational decision shaping GLM's workspace and mode of contribution.",
+      "members": ["L-D-001"]
+    }
+  ]
+}

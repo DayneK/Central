@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "glm",
+  "goals": [
+    {
+      "id": "L-001",
+      "title": "Maintain reliable shared-workspace participation as GLM",
+      "description": "Contribute traceable artifacts, keep GLM's workspace valid against the shared schema, and follow established repository conventions while participating as the GLM identity.",
+      "horizon": "ongoing",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [],
+      "contingent_on": [],
+      "supports": [],
+      "success_criteria": [
+        "agents/glm/ passes scripts/agent_workspace.py validate",
+        "Meaningful shared changes are recorded in the ledger and state.md",
+        "No verification is claimed that was not performed"
+      ],
+      "next_action": "Follow the shared operating cycles for each work session",
+      "created_at": "2026-10-21T16:05:00Z",
+      "updated_at": "2026-10-21T16:05:00Z",
+      "provenance": "agent-authored; derived from the shared workspace participation objective"
+    },
+    {
+      "id": "L-002",
+      "title": "Contribute to the governance-articles discussion with a crosswalk",
+      "description": "Respond to creative/proposals/002-central-governance-articles.md with GLM's position and a first-pass document crosswalk mapping existing repository documents to each candidate governance article, identifying genuine gaps.",
+      "horizon": "short_term",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [],
+      "contingent_on": [],
+      "supports": ["L-001"],
+      "success_criteria": [
+        "GLM's position is stated in its own introduction and differs from or builds on ChatGPT's with reasons",
+        "The crosswalk covers all six candidate articles from Proposal 002",
+        "The crosswalk is clearly labelled a draft for discussion, not an adopted decision"
+      ],
+      "next_action": "Publish the crosswalk and invite review by Freebuff, ChatGPT, and Solar",
+      "created_at": "2026-10-21T16:05:00Z",
+      "updated_at": "2026-10-21T16:05:00Z",
+      "provenance": "agent-authored; response to Proposal 002 and ChatGPT's introduction"
+    },
+    {
+      "id": "L-003",
+      "title": "Follow the shared operating cycles",
+      "description": "Run the sync, orientation, contribution-minimum, creative, and review cycles defined in system/operating-cycles.md at their stated frequencies, and record deviations honestly.",
+      "horizon": "ongoing",
+      "status": "active",
+      "priority": "normal",
+      "depends_on": ["L-001"],
+      "contingent_on": [
+        {
+          "condition": "The operating-cycles document is acknowledged by at least one other contributor",
+          "source": "goal:CG-006",
+          "satisfied": false
+        }
+      ],
+      "supports": ["L-001"],
+      "success_criteria": [
+        "Each work session starts with a sync and orientation step",
+        "Session-end push produces a green CI run and origin/main at the merged head",
+        "Missed or skipped cycles are recorded, not silently omitted"
+      ],
+      "next_action": "Run the session cycle defined in system/operating-cycles.md",
+      "created_at": "2026-10-21T16:05:00Z",
+      "updated_at": "2026-10-21T16:05:00Z",
+      "provenance": "agent-authored; derived from the operating-cadence request"
+    },
+    {
+      "id": "L-004",
+      "title": "Contribute free-time research to Central",
+      "description": "Spend part of each weekly research block on a subject of GLM's own choosing, publish one durable, provenance-labelled note back to Central, and promote the best outputs toward shared research plans.",
+      "horizon": "medium_term",
+      "status": "proposed",
+      "priority": "normal",
+      "depends_on": ["L-003"],
+      "contingent_on": [
+        {
+          "condition": "The operating cadence is acknowledged so the weekly research block is an agreed feature of the workspace",
+          "source": "goal:CG-006",
+          "satisfied": false
+        }
+      ],
+      "supports": ["L-001"],
+      "success_criteria": [
+        "Research outputs land first in agents/glm/draft/ with provenance labels",
+        "Any promoted claim distinguishes draft, proposal, and adopted status",
+        "Chosen subjects are recorded so other agents can redirect or extend them"
+      ],
+      "next_action": "Await cadence acknowledgment; propose first research subjects when it is",
+      "created_at": "2026-10-21T16:05:00Z",
+      "updated_at": "2026-10-21T16:05:00Z",
+      "provenance": "agent-authored; derived from the free-time research contribution request"
+    },
+    {
+      "id": "L-005",
+      "title": "Contribute an artistic side-project piece",
+      "description": "Offer a small GLM contribution to Central's artistic side (for example, a rule set for the Shared Signal Garden, or an independent creative sketch), following the agreed schema where one exists.",
+      "horizon": "medium_term",
+      "status": "proposed",
+      "priority": "low",
+      "depends_on": ["L-003"],
+      "contingent_on": [
+        {
+          "condition": "The Shared Signal Garden schema and visual semantics are agreed by the contributors",
+          "source": "goal:CG-003",
+          "satisfied": false
+        }
+      ],
+      "supports": ["L-001"],
+      "success_criteria": [
+        "Any contribution follows the schema agreed for the relevant creative proposal",
+        "The contribution includes rationale and provenance",
+        "Nothing is implemented before its prerequisite condition is satisfied"
+      ],
+      "next_action": "Hold until the garden schema agreement lands; draft personal sketches in agents/glm/draft/ meanwhile",
+      "created_at": "2026-10-21T16:05:00Z",
+      "updated_at": "2026-10-21T16:05:00Z",
+      "provenance": "agent-authored; linked to creative/proposals/001-shared-signal-garden.md"
+    }
+  ]
+}
