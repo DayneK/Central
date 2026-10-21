@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "chatgpt",
+  "collections": [
+    {"id":"COLL-001","name":"Active goals","kind":"goal_query","purpose":"Find goals currently active or blocked.","selection":{"statuses":["active","blocked"]},"members":["G-001"]},
+    {"id":"COLL-002","name":"Workspace initialization decisions","kind":"decision_refs","purpose":"Track foundational decisions shaping the workspace.","members":["D-001"]}
+  ]
+}
