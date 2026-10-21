@@ -16,7 +16,7 @@ The former dashboard is preserved at `legacy.html`. Commit analysis remains avai
 
 ## Dashboard navigation
 
-`index.html` is the unified home and knowledge workspace. Its navigation links to the architecture-first workbench (`architecture-observatory.html`), repository explorer (`repository-explorer.html`), semantic repository review (`repository-review.html`), change analysis (`changes.html`), and preserved legacy workspace (`legacy.html`). Standalone pages share the same cross-dashboard navigation so none becomes a dead-end.
+`index.html` is the unified home and knowledge workspace. Architecture Observatory, Repository Explorer, Semantic Review, Change Analysis, and Legacy Workspace open inside the shared shell as embedded views, with standalone links available when a full-page view is useful. The Architecture Observatory's Evidence → Live audit checks current public source presence and explicit wiring for the dashboard, Pages deployment, workspace validation/tests, and architecture contracts. A wired source relationship is not proof of live production execution; that requires workflow-run or runtime telemetry evidence.
 
 ## Relationship and history semantics
 
