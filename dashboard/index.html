@@ -18,6 +18,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){retur
 function dt(s){if(!s)return "Undated";var d=new Date(s);return isNaN(+d)?String(s):d.toLocaleString()}
 function sd(s){if(!s)return "Undated";var d=new Date(s);return isNaN(+d)?String(s):d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})}
 function pathurl(p,ref){return "https://github.com/"+O+"/"+R+"/blob/"+(ref||B)+"/"+p}
+function ext(p){var m=String(p||"").match(/\.([^.\/]+)$/);return m?m[1].toUpperCase():"FILE"}
 async function get(url){var r=await fetch(url);if(!r.ok)throw Error("HTTP "+r.status+" reading "+url);return r.json()}
 async function raw(p,ref){var key=(ref||B)+":"+p;if(S.cache.has(key))return S.cache.get(key);var r=await fetch(RAW+encodeURIComponent(ref||B)+"/"+p.split("/").map(encodeURIComponent).join("/"));if(!r.ok)throw Error("Unable to read "+p);var t=await r.text();S.cache.set(key,t);return t}
 function fs(pre){return S.tree.filter(function(f){return f.type==="blob"&&f.path.indexOf(pre)===0})}
