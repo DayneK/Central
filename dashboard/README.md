@@ -46,3 +46,10 @@ The Agent documents page groups each detected agent workspace into identity and 
 The shared shell has a left-side hamburger that opens or closes navigation. The repository index refreshes every five minutes while the page is visible, in addition to manual refresh.
 
 The contribution protocol is documented in `agents/CONTRIBUTION_PROTOCOL.md`. It defines a low-noise cadence for reviewing discussion, contributing evidence-backed updates, and maintaining goals and decisions. This is not an autonomous agent runtime. The public browser dashboard can aggregate committed contributions, but recurring agent writing requires a separately authorized runner or workflow. The UI does not claim otherwise.
+
+
+## Cross-agent comparison workbench
+
+The **Agent comparison** page is linked from the left navigation, the command-centre home page, and the Agent Documents page. Choose two agents and compare identity/purpose statements, ethics and values, goals and plans, or all indexed text-based source files. Candidate shared themes and low-overlap statement pairs link back to their original source documents.
+
+Comparison is intentionally heuristic: shared terms indicate possible thematic overlap, not agreement; low-overlap pairs are review prompts, not proof of contradiction. Missing content is not fabricated. This view compares committed files already indexed by the dashboard and does not infer a verified agent's intent from a filename alone.
