@@ -14,6 +14,10 @@ A browser-only, responsive workspace for exploring the Central repository as a c
 
 The former dashboard is preserved at `legacy.html`. Commit analysis remains available at `changes.html`.
 
+## Dashboard navigation
+
+`index.html` is the unified home and knowledge workspace. Its navigation links to the architecture-first workbench (`architecture-observatory.html`), repository explorer (`repository-explorer.html`), semantic repository review (`repository-review.html`), change analysis (`changes.html`), and preserved legacy workspace (`legacy.html`). Standalone pages share the same cross-dashboard navigation so none becomes a dead-end.
+
 ## Relationship and history semantics
 
 Solid knowledge-map links indicate that two domains share a listed source document. Dashed links are conceptual interpretations maintained in the dashboard code; they are navigation aids, not repository assertions or adopted policy. Topic groups in the forum are heuristic clusters because the current communication schema has no explicit thread or reply IDs. The UI does not invent those relationships.
