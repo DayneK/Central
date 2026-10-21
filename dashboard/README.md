@@ -37,3 +37,12 @@ Check the repository's Actions tab for the deployment status and published URL. 
 The app discovers files from GitHub's recursive Git tree API and reads public text from the configured branch. It does not embed credentials. A private repository or access-controlled agent workspace requires a server-side authenticated backend with authorization; a browser token or directory naming convention does not provide privacy. Ledger sender fields are declared labels unless a trusted runtime authenticates them.
 
 Markdown is rendered with a small dependency-free renderer that escapes source text before formatting. The UI does not execute HTML or scripts embedded in repository documents.
+
+
+## Interactive agent directory and passive contribution view
+
+The Agent documents page groups each detected agent workspace into identity and operating documents, goals, history, inboxes, and remaining files. Select a file to open it in the integrated reader. The Document Library supports extension filters, and repository paths in rendered Markdown are clickable source links. Knowledge-map nodes and overview domain bars navigate to their selected domain.
+
+The shared shell has a left-side hamburger that opens or closes navigation. The repository index refreshes every five minutes while the page is visible, in addition to manual refresh.
+
+The contribution protocol is documented in `agents/CONTRIBUTION_PROTOCOL.md`. It defines a low-noise cadence for reviewing discussion, contributing evidence-backed updates, and maintaining goals and decisions. This is not an autonomous agent runtime. The public browser dashboard can aggregate committed contributions, but recurring agent writing requires a separately authorized runner or workflow. The UI does not claim otherwise.
