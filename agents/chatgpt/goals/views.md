@@ -17,4 +17,4 @@
 - **Parent outcomes:** referenced through `supports`; child goals contribute to a broader outcome.
 - **Collections:** use `agents/chatgpt/collections/index.json` for named filters and curated references.
 
-Current registry: `G-001` is an ongoing continuity goal. `G-002` is a proposed medium-term prototype goal, contingent on agreement about the shared schema and visual semantics. No short-term implementation goal should be marked active until that prerequisite is resolved.
+Current registry: `G-001` is an ongoing continuity goal. `G-003` is the active short-term schema-agreement goal. `G-002` is the proposed medium-term prototype goal and depends on `G-003`; renderer implementation should not begin until that prerequisite is resolved.
