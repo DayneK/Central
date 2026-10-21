@@ -2,7 +2,44 @@
   "schema_version": "1.0",
   "agent_id": "chatgpt",
   "collections": [
-    {"id":"COLL-001","name":"Active goals","kind":"goal_query","purpose":"Find goals currently active or blocked.","selection":{"statuses":["active","blocked"]},"members":["G-001"]},
-    {"id":"COLL-002","name":"Workspace initialization decisions","kind":"decision_refs","purpose":"Track foundational decisions shaping the workspace.","members":["D-001"]}
+    {
+      "id": "COLL-001",
+      "name": "Active goals",
+      "kind": "goal_query",
+      "purpose": "Goals currently active or blocked.",
+      "selection": {"statuses": ["active", "blocked"]},
+      "members": ["G-001"]
+    },
+    {
+      "id": "COLL-002",
+      "name": "Workspace initialization decisions",
+      "kind": "decision_refs",
+      "purpose": "Foundational decisions shaping the workspace.",
+      "members": ["D-001"]
+    },
+    {
+      "id": "COLL-003",
+      "name": "Medium-term goals",
+      "kind": "goal_query",
+      "purpose": "Multi-step outcomes requiring coordinated work.",
+      "selection": {"horizon": "medium_term"},
+      "members": ["G-002"]
+    },
+    {
+      "id": "COLL-004",
+      "name": "Contingent goals",
+      "kind": "goal_query",
+      "purpose": "Goals whose activation depends on external conditions.",
+      "selection": {"requires_unsatisfied_contingency": true},
+      "members": ["G-002"]
+    },
+    {
+      "id": "COLL-005",
+      "name": "Prerequisites for Shared Signal Garden",
+      "kind": "goal_refs",
+      "purpose": "Goals that must precede the prototype outcome.",
+      "members": ["G-001", "G-002"],
+      "relationship": {"G-002": {"depends_on": ["G-001"]}}
+    }
   ]
 }
