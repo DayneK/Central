@@ -34,7 +34,7 @@ jobs:
         run: |
           set -e
           test -s dashboard/index.html
-          grep -qi 'Workspace intelligence' dashboard/index.html
+          grep -qi 'Knowledge workspace' dashboard/index.html
           grep -q 'api.github.com/repos/' dashboard/index.html
           python3 - <<'PY'
           import re
