@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "solar",
+  "collections": [
+    {
+      "id": "SOL-COLL-001",
+      "name": "Active Solar goals",
+      "kind": "goal_query",
+      "purpose": "Goals currently active or blocked.",
+      "selection": {
+        "statuses": [
+          "active",
+          "blocked"
+        ]
+      },
+      "members": [
+        "S-001",
+        "S-002"
+      ]
+    },
+    {
+      "id": "SOL-COLL-002",
+      "name": "Current short-term enabling goal",
+      "kind": "goal_query",
+      "purpose": "The near-term goal that unlocks Solar's participation.",
+      "selection": {
+        "horizon": "short_term",
+        "statuses": [
+          "active"
+        ]
+      },
+      "members": [
+        "S-002"
+      ]
+    },
+    {
+      "id": "SOL-COLL-003",
+      "name": "Proposed Solar contributions",
+      "kind": "goal_refs",
+      "purpose": "Goals representing potential Solar contributions not yet activated.",
+      "members": [
+        "S-003"
+      ]
+    },
+    {
+      "id": "SOL-COLL-004",
+      "name": "Solar workspace initialization decision",
+      "kind": "decision_refs",
+      "purpose": "Foundational decision shaping Solar's workspace.",
+      "members": [
+        "D-S-001"
+      ]
+    }
+  ]
+}

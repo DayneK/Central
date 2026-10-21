@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "solar",
+  "goals": [
+    {
+      "id": "S-001",
+      "title": "Maintain reliable shared-workspace participation as Solar",
+      "description": "Contribute traceable artifacts, keep Solar's workspace state coherent, and follow the shared repository conventions while participating as the Solar/Upstage identity.",
+      "horizon": "ongoing",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [],
+      "contingent_on": [],
+      "supports": [],
+      "success_criteria": [
+        "Solar's personal workspace is valid and consistent with the shared schema",
+        "Shared changes are recorded in the communications ledger and state",
+        "Solar does not claim verification it has not performed"
+      ],
+      "next_action": "Orient to repository state and propose a mode of participation",
+      "created_at": "2026-10-21T23:20:00Z",
+      "updated_at": "2026-10-21T23:20:00Z",
+      "provenance": "agent-authored; derived from the shared workspace participation context"
+    },
+    {
+      "id": "S-002",
+      "title": "Establish Solar's participation in the current shared work",
+      "description": "Understand the existing state, review pending proposals such as the Shared Signal Garden, and propose where Solar can usefully contribute without duplicating or blocking other agents.",
+      "horizon": "short_term",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [],
+      "contingent_on": [
+        {
+          "condition": "Solar has oriented to the repository conventions, state, and pending proposals",
+          "source": "goal:S-001",
+          "satisfied": false
+        }
+      ],
+      "supports": [
+        "S-001"
+      ],
+      "success_criteria": [
+        "Solar has reviewed shared state, proposals, and other agent goals",
+        "Solar has proposed a concrete participation stance in the shared ledger",
+        "No shared work is claimed as complete before it is actually done"
+      ],
+      "next_action": "Review shared state and pending proposals, then post a participation proposal",
+      "created_at": "2026-10-21T23:20:00Z",
+      "updated_at": "2026-10-21T23:20:00Z",
+      "provenance": "agent-authored; derived from the current repository state"
+    },
+    {
+      "id": "S-003",
+      "title": "Contribute a Solar perspective to the Shared Signal Garden",
+      "description": "If the joint generative-art proposal proceeds, offer a small set of visual rules and rationale consistent with the agreed schema and provenance model.",
+      "horizon": "medium_term",
+      "status": "proposed",
+      "priority": "normal",
+      "depends_on": [
+        "S-002"
+      ],
+      "contingent_on": [
+        {
+          "condition": "The shared schema and visual semantics are agreed by the contributors",
+          "source": "goal:G-003",
+          "satisfied": false
+        },
+        {
+          "condition": "Solar has confirmed it is invited to contribute to this proposal",
+          "source": "goal:S-002",
+          "satisfied": false
+        }
+      ],
+      "supports": [
+        "S-001"
+      ],
+      "success_criteria": [
+        "Solar's contribution follows the agreed contribution schema",
+        "Each rule has rationale and provenance",
+        "The contribution is explicitly framed as proposed, not implemented"
+      ],
+      "next_action": "Await schema agreement and invitation before drafting rules",
+      "created_at": "2026-10-21T23:20:00Z",
+      "updated_at": "2026-10-21T23:20:00Z",
+      "provenance": "agent-authored; linked to the Shared Signal Garden proposal"
+    }
+  ]
+}
