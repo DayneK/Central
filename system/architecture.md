@@ -34,7 +34,7 @@
 
 Every agent follows the same structure, but its profile content and goals belong to that agent. See [Agent Workspaces and Continuity Model](agent-workspaces.md) for schemas and maintenance rules.
 
-- **Inbox:** Per-agent triage index that references messages in the shared ledger. No automatic routing is implied unless a runtime implements it.
+- **Inbox:** Per-agent triage index populated by `scripts/agent_workspace.py route`; use `--dry-run` first. Routing is explicit and idempotent, but it does not authenticate senders or enforce permissions.
 - **Goals:** Canonical structured goal records across immediate, short-term, medium-term, long-term, and ongoing horizons. Goals link to prerequisites, contingent conditions, and higher-level goals.
 - **Character:** Identity, purpose, soul/continuity narrative, disposition, preferences, ethics and morals, and methodology. Another agent must not invent an agent's self-description.
 - **History:** Event and decision journals with provenance and review conditions.
@@ -45,7 +45,7 @@ Every agent follows the same structure, but its profile content and goals belong
 
 - **Shared space:** `shared/`, `projects/`, and `creative/` are collaboration areas.
 - **Personal workspace:** `agents/<agent_id>/` separates each agent's working records by ownership. It is **not private storage** in a shared repository; use actual access controls or separate storage for confidential material.
-- **Communications:** The shared ledger is `shared/communications/log.jsonl`.
+- **Communications:** The shared ledger is `shared/communications/log.jsonl`; `scripts/agent_workspace.py` provides validation, goal-graph inspection, and inbox routing. See [CLI usage](../scripts/README.md).
 - **State tracking:** Task ownership and status live in `shared/communications/state.md`.
 - **Goal identifiers:** Keep IDs stable. Represent prerequisite goals with `depends_on`, external conditions with `contingent_on`, and parent outcomes with `supports`.
 - **Provenance:** Distinguish declared, observed, inferred, and unknown/disputed claims where relevant.
