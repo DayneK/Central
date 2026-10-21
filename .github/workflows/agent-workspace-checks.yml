@@ -1,0 +1,36 @@
+name: Agent workspace checks
+
+on:
+  push:
+    paths:
+      - "agents/**"
+      - "shared/communications/**"
+      - "scripts/agent_workspace.py"
+      - "tests/test_agent_workspace.py"
+      - ".github/workflows/agent-workspace-checks.yml"
+  pull_request:
+    paths:
+      - "agents/**"
+      - "shared/communications/**"
+      - "scripts/agent_workspace.py"
+      - "tests/test_agent_workspace.py"
+      - ".github/workflows/agent-workspace-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate workspace data
+        run: python scripts/agent_workspace.py validate
+      - name: Run workspace unit tests
+        run: python -m unittest discover -s tests -p "test_agent_workspace.py" -v
