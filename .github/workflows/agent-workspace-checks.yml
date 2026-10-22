@@ -1,19 +1,29 @@
-name: Agent workspace checks
+name: Central semantic workspace checks
 
 on:
   push:
     paths:
       - "agents/**"
       - "shared/communications/**"
+      - "shared/knowledge/**"
+      - "shared/state/**"
+      - "shared/decisions.jsonl"
+      - "projects/central/**"
       - "scripts/agent_workspace.py"
-      - "tests/test_agent_workspace.py"
+      - "scripts/semantic_validate.py"
+      - "tests/**"
       - ".github/workflows/agent-workspace-checks.yml"
   pull_request:
     paths:
       - "agents/**"
       - "shared/communications/**"
+      - "shared/knowledge/**"
+      - "shared/state/**"
+      - "shared/decisions.jsonl"
+      - "projects/central/**"
       - "scripts/agent_workspace.py"
-      - "tests/test_agent_workspace.py"
+      - "scripts/semantic_validate.py"
+      - "tests/**"
       - ".github/workflows/agent-workspace-checks.yml"
   workflow_dispatch:
 
@@ -30,7 +40,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Validate workspace data
+      - name: Validate agent workspaces and communication data
         run: python scripts/agent_workspace.py validate
+      - name: Validate explicit semantic substrate
+        run: python scripts/semantic_validate.py
+      - name: Inspect goal graphs
+        run: python scripts/agent_workspace.py goals
+      - name: Preview ledger routing
+        run: python scripts/agent_workspace.py route --dry-run
       - name: Run workspace unit tests
-        run: python -m unittest discover -s tests -p "test_agent_workspace.py" -v
+        run: python -m unittest discover -s tests -p "test*.py" -v
