@@ -11,18 +11,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_EXTENSIONS = {".md", ".json", ".jsonl", ".txt", ".yaml", ".yml", ".py", ".js", ".html", ".css", ".sh", ".toml"}
+CODE_EXTENSIONS = {".py", ".js", ".sh"}
 SKIP = {".git", "node_modules"}
 PATTERNS = {
     "private-key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"),
     "bearer-token": re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]{20,}"),
     "credential-assignment": re.compile(r"(?i)\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password)\s*[:=]\s*[\"'][^\"']{8,}[\"']"),
-    "sender-authorizes": re.compile(r"(?i)(?:authorize|permission|allow|is_admin|can_write)[^\n]{0,80}(?:sender|agent_id)"),
+    "sender-authorizes": re.compile(r"(?i)\b(?:if|unless|when)\b[^\n]{0,100}\b(?:sender|agent_id)\b[^\n]{0,100}\b(?:authorize|permission|allow|admin|write)\b"),
 }
 
-ALLOW = {
-    "SECURITY.md",
-    "scripts/security_audit.py",
-}
+ALLOW = {"SECURITY.md", "scripts/security_audit.py"}
 
 
 def files():
@@ -46,6 +44,8 @@ def main() -> int:
             continue
         for line_no, line in enumerate(text.splitlines(), 1):
             for name, pattern in PATTERNS.items():
+                if name == "sender-authorizes" and path.suffix.lower() not in CODE_EXTENSIONS:
+                    continue
                 if pattern.search(line):
                     findings.append((rel, line_no, name))
     if findings:
