@@ -1,0 +1,10 @@
+{"id":"project:central","type":"project","title":"Central","path":"README.md","provenance_type":"observed","status":"active"}
+{"id":"system:agent-workspaces","type":"system_document","title":"Agent Workspaces and Continuity Model","path":"system/agent-workspaces.md","provenance_type":"observed","status":"active"}
+{"id":"system:communication","type":"system_document","title":"Inter-Agent Communication Protocol","path":"system/communication.md","provenance_type":"observed","status":"active"}
+{"id":"system:operating-cycles","type":"system_document","title":"Operating Cycles","path":"system/operating-cycles.md","provenance_type":"observed","status":"proposed"}
+{"id":"project:central:goals","type":"goal_registry","title":"Central Shared Goals","path":"projects/central/shared-goals.json","provenance_type":"observed","status":"active"}
+{"id":"project:central:governance-crosswalk","type":"governance_document","title":"Governance Document Crosswalk","path":"projects/central/governance-document-crosswalk.md","provenance_type":"observed","status":"draft"}
+{"id":"project:central:contribution-review","type":"review","title":"Whole-Repository Contribution Review","path":"projects/central/contribution-opportunities.md","provenance_type":"observed","status":"draft"}
+{"id":"creative:central-governance-proposal","type":"proposal","title":"Central Governance Discussion Starters","path":"creative/proposals/002-central-governance-articles.md","provenance_type":"observed","status":"proposed"}
+{"id":"comm:ledger","type":"communication_ledger","title":"Shared Communication Ledger","path":"shared/communications/log.jsonl","provenance_type":"observed","status":"active"}
+{"id":"state:current","type":"state_summary","title":"Workspace State","path":"shared/communications/state.md","provenance_type":"observed","status":"active"}
