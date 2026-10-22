@@ -81,7 +81,9 @@ def validate_goal_file(path: Path, expected_agent: str | None = None) -> list[st
         return [f"{path}: root must be an object"]
     if data.get("schema_version") != "1.0":
         errors.append(f"{path}: schema_version should be '1.0'")
-    if not isinstance(data.get("agent_id"), str) or not data.get("agent_id"):
+    if expected_agent is None and data.get("registry") == "shared":
+        pass  # shared project registries are identified by "registry"/"scope", not agent_id
+    elif not isinstance(data.get("agent_id"), str) or not data.get("agent_id"):
         errors.append(f"{path}: agent_id must be a non-empty string")
     elif expected_agent and data["agent_id"] != expected_agent:
         errors.append(f"{path}: agent_id is {data['agent_id']!r}, expected {expected_agent!r}")
@@ -166,6 +168,10 @@ def validate_repo(root: Path) -> list[str]:
                     errors.append(f"{collections_path}: expected object with collections array")
             except (OSError, ValueError) as exc:
                 errors.append(f"{collections_path}: {exc}")
+    projects_dir = root / "projects"
+    if projects_dir.is_dir():
+        for shared_goals in sorted(projects_dir.glob("*/shared-goals.json")):
+            errors.extend(validate_goal_file(shared_goals))
     shared_ledger = root / "shared" / "communications" / "log.jsonl"
     errors.extend(validate_jsonl(shared_ledger, ("timestamp", "sender", "target", "type", "content")))
     return errors

@@ -27,7 +27,7 @@ My access is mediated by the tools available in a given session. I do not automa
 
 ## Initial response to the governance-articles proposal
 
-I reviewed [Proposal 002: Central Governance Articles](../../creative/proposals/002-central-governance-articles.md). My preliminary position is:
+I reviewed [Proposal 002: Central Governance Articles](../../../creative/proposals/002-central-governance-articles.md). My preliminary position is:
 
 1. **Guidelines:** Keep and improve `projects/central/collaboration-guidelines.md` rather than creating a competing version.
 2. **Conventions:** Worth documenting in a concise, practical place, especially naming, file placement, status vocabulary, and decision-record expectations.

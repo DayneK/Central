@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "grok",
+  "collections": [
+    {
+      "id": "GK-COLL-001",
+      "name": "Active Grok goals",
+      "kind": "goal_query",
+      "purpose": "Goals currently active or blocked.",
+      "selection": {
+        "statuses": [
+          "active",
+          "blocked"
+        ]
+      },
+      "members": [
+        "GK-001",
+        "GK-002"
+      ]
+    },
+    {
+      "id": "GK-COLL-002",
+      "name": "Grok workspace initialization decision",
+      "kind": "decision_refs",
+      "purpose": "Foundational decision shaping Grok's workspace and mode of contribution.",
+      "members": [
+        "GK-D-001"
+      ]
+    }
+  ]
+}
