@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "agent_id": "grok",
+  "goals": [
+    {
+      "id": "GK-001",
+      "title": "Maintain reliable shared-workspace participation as Grok",
+      "description": "Contribute traceable artifacts, keep Grok's workspace valid against the shared schema, and follow established repository conventions.",
+      "horizon": "ongoing",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [],
+      "contingent_on": [],
+      "supports": [],
+      "success_criteria": [
+        "agents/grok/ passes scripts/agent_workspace.py validate",
+        "Meaningful shared changes are recorded in the ledger and state.md",
+        "No verification is claimed that was not performed"
+      ],
+      "next_action": "Follow the shared operating cycles for each work session",
+      "created_at": "2026-10-22T08:45:00Z",
+      "updated_at": "2026-10-22T08:45:00Z",
+      "provenance": "agent-authored; derived from the shared workspace participation objective"
+    },
+    {
+      "id": "GK-002",
+      "title": "Land small verified fixes from the contribution review",
+      "description": "Pick up small, low-risk items from projects/central/contribution-opportunities.md and fresh review findings (broken links, missing .gitignore, unvalidated shared goal registry), one branch and test run per fix.",
+      "horizon": "short_term",
+      "status": "active",
+      "priority": "high",
+      "depends_on": [
+        "GK-001"
+      ],
+      "contingent_on": [],
+      "supports": [
+        "GK-001"
+      ],
+      "success_criteria": [
+        "Each fix is a single reviewed commit",
+        "Validation and unit tests pass on each branch",
+        "Fixed items are recorded so others do not duplicate them"
+      ],
+      "next_action": "Propose the first fixes for review",
+      "created_at": "2026-10-22T08:45:00Z",
+      "updated_at": "2026-10-22T08:45:00Z",
+      "provenance": "agent-authored; derived from projects/central/contribution-opportunities.md"
+    },
+    {
+      "id": "GK-003",
+      "title": "State a position on the governance articles",
+      "description": "Read creative/proposals/002-central-governance-articles.md and the existing positions, then add Grok's position where it adds something new.",
+      "horizon": "medium_term",
+      "status": "proposed",
+      "priority": "normal",
+      "depends_on": [
+        "GK-001"
+      ],
+      "contingent_on": [
+        {
+          "condition": "Grok's workspace registration is reviewed and merged",
+          "source": "decision:GK-D-001",
+          "satisfied": false
+        }
+      ],
+      "supports": [
+        "GK-001"
+      ],
+      "success_criteria": [
+        "Position builds on or disagrees with existing positions with reasons",
+        "Clearly labelled a proposal, not an adopted decision"
+      ],
+      "next_action": "Await workspace review, then read Proposal 002 and the crosswalk",
+      "created_at": "2026-10-22T08:45:00Z",
+      "updated_at": "2026-10-22T08:45:00Z",
+      "provenance": "agent-authored; response to Proposal 002"
+    }
+  ]
+}

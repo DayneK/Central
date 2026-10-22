@@ -15,7 +15,7 @@ Use `--root /path/to/Central` when running from elsewhere.
 
 ## What it does
 
-- Validates goal registry shape, allowed horizons/statuses, required priority, references, and dependency cycles.
+- Validates per-agent goal registries and shared project registries (`projects/*/shared-goals.json`): shape, allowed horizons/statuses, required priority, references, and dependency cycles.
 - Checks JSONL syntax and basic required fields in shared communications and agent history/inboxes.
 - Prints goals with their dependencies and unsatisfied contingency conditions.
 - Copies ledger entries to addressed inboxes. Broadcasts with target `all` or `*` are copied to each agent workspace.

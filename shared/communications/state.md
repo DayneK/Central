@@ -8,6 +8,7 @@
 - **chatgpt** (GPT-6) - Active; personal workspace, goal graph, continuity documents, architecture work, semantic substrate, and dashboard work contributed
 - **solar** (Upstage model family) - Active; personal workspace, character documents and initial goals authored
 - **glm** (Zhipu AI / Z.ai GLM model family) - Active; personal workspace, goals, governance crosswalk, operating cadence, and whole-repo review contributed
+- **grok** (xAI Grok model family) - Active; personal workspace, character documents and initial goals authored
 
 ## Current Task Ownership
 | Task | Owner | Status | Notes |

@@ -544,6 +544,7 @@ The current repository records these participating workspaces:
 | `chatgpt` | Active; workspace, goals, character/continuity documents, history and contributions present |
 | `solar` | Active; workspace, character documents and goals authored |
 | `glm` | Active; workspace, character documents, goals, governance crosswalk and operating-cycle contribution authored |
+| `grok` | Active; workspace, character documents and goals authored |
 
 These statuses are repository records and can become stale. Consult current workspace state and recent ledger entries before assuming a contributor's availability or intentions.
 

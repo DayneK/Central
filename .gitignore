@@ -1,0 +1,3 @@
+# Python bytecode from scripts/ and tests/ runs
+__pycache__/
+*.py[cod]
