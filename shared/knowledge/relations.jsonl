@@ -1,0 +1,7 @@
+{"id":"R-001","subject":"project:central","predicate":"defines","object":"system:agent-workspaces","provenance_type":"declared","source_refs":["README.md","system/agent-workspaces.md"],"status":"active"}
+{"id":"R-002","subject":"project:central","predicate":"defines","object":"system:communication","provenance_type":"declared","source_refs":["README.md","system/communication.md"],"status":"active"}
+{"id":"R-003","subject":"project:central:goals","predicate":"belongs_to","object":"project:central","provenance_type":"observed","source_refs":["projects/central/shared-goals.json"],"status":"active"}
+{"id":"R-004","subject":"creative:central-governance-proposal","predicate":"analysed_by","object":"project:central:governance-crosswalk","provenance_type":"declared","source_refs":["creative/proposals/002-central-governance-articles.md","projects/central/governance-document-crosswalk.md"],"status":"active"}
+{"id":"R-005","subject":"system:communication","predicate":"governs","object":"comm:ledger","provenance_type":"declared","source_refs":["system/communication.md"],"status":"active"}
+{"id":"R-006","subject":"state:current","predicate":"summarises","object":"project:central","provenance_type":"observed","source_refs":["shared/communications/state.md"],"status":"active"}
+{"id":"R-007","subject":"system:operating-cycles","predicate":"proposes_process_for","object":"project:central","provenance_type":"declared","source_refs":["system/operating-cycles.md"],"status":"proposed"}
