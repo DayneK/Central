@@ -124,23 +124,39 @@ def validate_threads(root: Path, message_ids: set[str]):
 def validate_work(root: Path):
     errors = []
     ids = set()
+    records = []
     path = root / "shared/work/items.jsonl"
     for line, item in jsonl(path):
+        records.append((line, item))
         require_fields(path, line, item, ("id", "title", "description", "status", "priority", "owner", "depends_on", "source_refs", "acceptance_criteria", "verification", "provenance_type"), errors)
         wid = item.get("id")
         if wid in ids:
             errors.append(f"{path}:{line}: duplicate work id {wid!r}")
         ids.add(wid)
-        if item.get("status") not in WORK_STATUS:
-            errors.append(f"{path}:{line}: invalid work status {item.get('status')!r}")
-        if item.get("provenance_type") not in PROVENANCE:
+        status = item.get("status")
+        if not isinstance(status, str) or status not in WORK_STATUS:
+            errors.append(f"{path}:{line}: invalid work status {status!r}")
+        provenance = item.get("provenance_type")
+        if not isinstance(provenance, str) or provenance not in PROVENANCE:
             errors.append(f"{path}:{line}: invalid provenance_type")
-        if item.get("status") == "verified" and item.get("verification", {}).get("status") in {None, "pending"}:
-            errors.append(f"{path}:{line}: verified work must have non-pending verification")
-    for line, item in jsonl(path):
-        for dep in item.get("depends_on", []):
-            if dep not in ids:
-                errors.append(f"{path}:{line}: depends_on references unknown work item {dep!r}")
+        dependencies = item.get("depends_on")
+        if not isinstance(dependencies, list):
+            errors.append(f"{path}:{line}: depends_on must be a list")
+        elif any(not isinstance(dep, str) for dep in dependencies):
+            errors.append(f"{path}:{line}: depends_on entries must be strings")
+        verification = item.get("verification")
+        if not isinstance(verification, dict):
+            errors.append(f"{path}:{line}: verification must be an object")
+        elif status == "verified":
+            verification_status = verification.get("status")
+            if verification_status is None or verification_status == "pending":
+                errors.append(f"{path}:{line}: verified work must have non-pending verification")
+    for line, item in records:
+        dependencies = item.get("depends_on")
+        if isinstance(dependencies, list):
+            for dep in dependencies:
+                if isinstance(dep, str) and dep not in ids:
+                    errors.append(f"{path}:{line}: depends_on references unknown work item {dep!r}")
     return errors, ids
 
 
@@ -170,14 +186,17 @@ def validate_events(root: Path):
         if not path.is_file():
             continue  # validate_paths() reports the missing file
         ids = set()
-        for line, item in jsonl(path):
-            require_fields(path, line, item, fields, errors)
-            key = item.get(fields[0])
-            if key in ids:
-                errors.append(f"{path}:{line}: duplicate id {key!r}")
-            ids.add(key)
-            if relative.endswith("snapshots.jsonl") and item.get("source_commit") and not re.fullmatch(r"[0-9a-f]{7,40}", str(item["source_commit"])):
-                errors.append(f"{path}:{line}: source_commit is not a Git SHA-like value")
+        try:
+            for line, item in jsonl(path):
+                require_fields(path, line, item, fields, errors)
+                key = item.get(fields[0])
+                if key in ids:
+                    errors.append(f"{path}:{line}: duplicate id {key!r}")
+                ids.add(key)
+                if relative.endswith("snapshots.jsonl") and item.get("source_commit") and not re.fullmatch(r"[0-9a-f]{7,40}", str(item["source_commit"])):
+                    errors.append(f"{path}:{line}: source_commit is not a Git SHA-like value")
+        except (OSError, ValueError, TypeError) as exc:
+            errors.append(f"{path}: {exc}")
     return errors
 
 

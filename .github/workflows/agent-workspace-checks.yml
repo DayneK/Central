@@ -14,8 +14,8 @@ on:
       - "scripts/**"
       - "tests/**"
       - "dashboard/**"
-      - "SECURITY.md"
-      - ".github/workflows/agent-workspace-checks.yml"
+      - "*.md"
+      - ".github/workflows/**"
   pull_request:
     paths:
       - "agents/**"
@@ -26,8 +26,8 @@ on:
       - "scripts/**"
       - "tests/**"
       - "dashboard/**"
-      - "SECURITY.md"
-      - ".github/workflows/agent-workspace-checks.yml"
+      - "*.md"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 permissions:

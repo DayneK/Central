@@ -167,6 +167,37 @@ class SemanticValidateTests(unittest.TestCase):
         self.update("shared/work/items.jsonl", status="verified")
         self.assertTrue(any("verified work must have non-pending verification" in e for e in self.errors()))
 
+    def test_null_verification_is_reported_without_crashing(self):
+        self.update("shared/work/items.jsonl", verification=None)
+        errors = self.errors()
+        self.assertTrue(any("verification must be an object" in e for e in errors), errors)
+
+    def test_null_depends_on_is_reported_without_crashing(self):
+        self.update("shared/work/items.jsonl", depends_on=None)
+        errors = self.errors()
+        self.assertTrue(any("depends_on must be a list" in e for e in errors), errors)
+
+    def test_non_string_dependency_is_reported_without_crashing(self):
+        self.update("shared/work/items.jsonl", depends_on=[None, {"id": "work:two"}])
+        errors = self.errors()
+        self.assertTrue(any("depends_on entries must be strings" in e for e in errors), errors)
+
+    def test_malformed_event_journal_does_not_skip_later_journals(self):
+        (self.root / "shared/state/events.jsonl").write_text("{bad json\n", encoding="utf-8")
+        self.update("shared/state/snapshots.jsonl", source_commit="not-a-sha")
+        (self.root / "shared/decisions.jsonl").write_text("{}\n", encoding="utf-8")
+        errors = self.errors()
+        self.assertTrue(any("events.jsonl:1: invalid JSON" in e for e in errors), errors)
+        self.assertTrue(any("snapshots.jsonl" in e and "not a Git SHA" in e for e in errors), errors)
+        self.assertTrue(any("decisions.jsonl:1: missing id" in e for e in errors), errors)
+
+    def test_malformed_snapshot_journal_does_not_skip_decisions(self):
+        (self.root / "shared/state/snapshots.jsonl").write_text("{bad json\n", encoding="utf-8")
+        (self.root / "shared/decisions.jsonl").write_text("{}\n", encoding="utf-8")
+        errors = self.errors()
+        self.assertTrue(any("snapshots.jsonl:1: invalid JSON" in e for e in errors), errors)
+        self.assertTrue(any("decisions.jsonl:1: missing id" in e for e in errors), errors)
+
     def test_review_of_unknown_work_item_is_reported(self):
         self.update("shared/work/reviews.jsonl", work_id="work:missing")
         self.assertTrue(any("work_id references unknown work item 'work:missing'" in e for e in self.errors()))
