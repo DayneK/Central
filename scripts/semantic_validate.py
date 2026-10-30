@@ -167,6 +167,8 @@ def validate_events(root: Path):
         "shared/decisions.jsonl": ("id", "timestamp", "decision", "context", "alternatives", "rationale", "status", "affected_goals", "evidence", "review_trigger"),
     }.items():
         path = root / relative
+        if not path.is_file():
+            continue  # validate_paths() reports the missing file
         ids = set()
         for line, item in jsonl(path):
             require_fields(path, line, item, fields, errors)
@@ -198,28 +200,73 @@ def validate_paths(root: Path):
     return errors
 
 
-def main() -> int:
-    root = Path(__file__).resolve().parents[1]
-    errors = []
+def present(root: Path, relative: str) -> bool:
+    """A stage whose input file is absent is skipped.
+
+    validate_paths() already reports that file, so re-opening it would only add
+    an opaque I/O error next to a precise message.
+    """
+    return (root / relative).is_file()
+
+
+def run(root: Path) -> list[str]:
+    """Run every validation stage, isolating failures between stages.
+
+    Stages are split only along data dependencies. A missing or malformed file
+    is reported on its own and leaves independent stages running, instead of
+    silently disabling every check that came after it.
+    """
+    errors: list[str] = []
+    errors.extend(validate_paths(root))
+
+    # Knowledge documents, then the relations whose endpoints must be documents.
+    if present(root, "shared/knowledge/documents.jsonl"):
+        try:
+            document_errors, document_ids = validate_documents(root)
+            errors.extend(document_errors)
+            if present(root, "shared/knowledge/relations.jsonl"):
+                errors.extend(validate_relations(root, document_ids))
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+
+    # Messages, the threads that contain them, and the cross-reference between.
+    if present(root, "shared/communications/messages.jsonl"):
+        try:
+            message_errors, message_ids, _, _ = validate_messages(root)
+            errors.extend(message_errors)
+            if present(root, "shared/communications/threads.jsonl"):
+                thread_errors, thread_ids = validate_threads(root, message_ids)
+                errors.extend(thread_errors)
+                # Validate that every modern message points at a registered thread.
+                for line, item in jsonl(root / "shared/communications/messages.jsonl"):
+                    if item.get("thread_id") not in thread_ids:
+                        errors.append(f"shared/communications/messages.jsonl:{line}: unknown thread_id {item.get('thread_id')!r}")
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+
+    # Work items, then the reviews that must reference them.
+    if present(root, "shared/work/items.jsonl"):
+        try:
+            work_errors, work_ids = validate_work(root)
+            errors.extend(work_errors)
+            if present(root, "shared/work/reviews.jsonl"):
+                errors.extend(validate_reviews(root, work_ids))
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+
+    # The three journals are independent of one another; validate_events skips
+    # any of them that is missing, because validate_paths already reported it.
     try:
-        errors.extend(validate_paths(root))
-        document_errors, document_ids = validate_documents(root)
-        errors.extend(document_errors)
-        errors.extend(validate_relations(root, document_ids))
-        message_errors, message_ids, _, _ = validate_messages(root)
-        errors.extend(message_errors)
-        _, thread_ids = validate_threads(root, message_ids)
-        errors.extend(validate_threads(root, message_ids)[0])
-        work_errors, work_ids = validate_work(root)
-        errors.extend(work_errors)
-        errors.extend(validate_reviews(root, work_ids))
         errors.extend(validate_events(root))
-        # Validate that every modern message points at a registered thread.
-        for line, item in jsonl(root / "shared/communications/messages.jsonl"):
-            if item.get("thread_id") not in thread_ids:
-                errors.append(f"shared/communications/messages.jsonl:{line}: unknown thread_id {item.get('thread_id')!r}")
     except (OSError, ValueError) as exc:
         errors.append(str(exc))
+
+    return errors
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parents[1]
+    errors = run(root)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

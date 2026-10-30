@@ -1,0 +1,190 @@
+"""Fixture-based tests for scripts/semantic_validate.py.
+
+The existing substrate tests assert that the live repository is valid. These
+tests do the opposite: they build a minimal valid substrate in a temp directory
+and prove that each rule actually fires when its data is wrong, and that one
+broken file does not silently disable validation of the others.
+"""
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from scripts.semantic_validate import run, validate_threads as real_validate_threads
+
+
+def write_jsonl(path: Path, records) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+
+
+def read_jsonl(path: Path) -> list[dict]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def build_substrate(root: Path) -> None:
+    """Write the smallest substrate that satisfies every semantic rule."""
+    write_jsonl(root / "shared/knowledge/documents.jsonl", [{
+        "id": "doc:one", "type": "document", "title": "One",
+        "provenance_type": "declared", "status": "active",
+    }])
+    write_jsonl(root / "shared/knowledge/relations.jsonl", [{
+        "id": "rel:one", "subject": "doc:one", "predicate": "defines",
+        "object": "doc:one", "provenance_type": "declared", "status": "active",
+    }])
+    write_jsonl(root / "shared/communications/threads.jsonl", [{
+        "thread_id": "thread:one", "title": "Thread", "status": "open",
+        "topic": "testing", "message_ids": ["msg:one"],
+    }])
+    write_jsonl(root / "shared/communications/messages.jsonl", [{
+        "message_id": "msg:one", "thread_id": "thread:one",
+        "timestamp": "2026-01-01T00:00:00Z", "sender": "agent", "target": "agent",
+        "type": "update", "content": "hello", "source_refs": [],
+        "provenance_type": "declared",
+    }])
+    write_jsonl(root / "shared/work/items.jsonl", [{
+        "id": "work:one", "title": "Work", "description": "d", "status": "active",
+        "priority": "high", "owner": "agent", "depends_on": [], "source_refs": [],
+        "acceptance_criteria": ["done"], "verification": {"status": "pending"},
+        "provenance_type": "declared",
+    }])
+    write_jsonl(root / "shared/work/reviews.jsonl", [{
+        "id": "review:one", "timestamp": "2026-01-01T00:00:00Z", "work_id": "work:one",
+        "reviewer": "agent", "result": "pass", "criteria_checked": [], "evidence_refs": [],
+    }])
+    write_jsonl(root / "shared/state/events.jsonl", [{
+        "id": "evt:one", "timestamp": "2026-01-01T00:00:00Z", "type": "note",
+        "summary": "s", "actors": ["agent"], "source_refs": [],
+    }])
+    write_jsonl(root / "shared/state/snapshots.jsonl", [{
+        "id": "snap:one", "timestamp": "2026-01-01T00:00:00Z", "label": "l",
+        "source_commit": "abc1234", "state_file": "shared/state/x.json",
+    }])
+    write_jsonl(root / "shared/decisions.jsonl", [{
+        "id": "dec:one", "timestamp": "2026-01-01T00:00:00Z", "decision": "d",
+        "context": "c", "alternatives": [], "rationale": "r", "status": "accepted",
+        "affected_goals": [], "evidence": [], "review_trigger": "never",
+    }])
+
+
+class SemanticValidateTests(unittest.TestCase):
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        build_substrate(self.root)
+
+    def errors(self) -> list[str]:
+        return run(self.root)
+
+    def update(self, relative: str, index: int = 0, **fields) -> None:
+        records = read_jsonl(self.root / relative)
+        records[index].update(fields)
+        write_jsonl(self.root / relative, records)
+
+    # --- baseline -----------------------------------------------------------
+
+    def test_minimal_substrate_is_valid(self):
+        self.assertEqual(self.errors(), [])
+
+    # --- stage isolation (regression for the short-circuit finding) ---------
+
+    def test_malformed_file_does_not_disable_other_stages(self):
+        (self.root / "shared/knowledge/documents.jsonl").write_text("{not json", encoding="utf-8")
+        self.update("shared/work/items.jsonl", status="nonsense")
+        errors = self.errors()
+        self.assertTrue(any("shared/knowledge/documents.jsonl" in e for e in errors), errors)
+        self.assertTrue(any("invalid work status" in e for e in errors), errors)
+
+    def test_missing_file_is_reported_without_disabling_other_stages(self):
+        (self.root / "shared/work/reviews.jsonl").unlink()
+        self.update("shared/work/items.jsonl", status="nonsense")
+        errors = self.errors()
+        self.assertIn("missing required semantic file: shared/work/reviews.jsonl", errors)
+        self.assertTrue(any("invalid work status" in e for e in errors), errors)
+
+    def test_threads_are_validated_once(self):
+        with mock.patch("scripts.semantic_validate.validate_threads", wraps=real_validate_threads) as spy:
+            self.assertEqual(run(self.root), [])
+        self.assertEqual(spy.call_count, 1)
+
+    # --- document and relation rules ---------------------------------------
+
+    def test_duplicate_document_id_is_reported(self):
+        docs = read_jsonl(self.root / "shared/knowledge/documents.jsonl")
+        write_jsonl(self.root / "shared/knowledge/documents.jsonl", docs + [dict(docs[0])])
+        self.assertTrue(any("duplicate id" in e for e in self.errors()))
+
+    def test_unknown_relation_endpoint_is_reported(self):
+        self.update("shared/knowledge/relations.jsonl", object="doc:missing")
+        self.assertTrue(any("references unknown entity 'doc:missing'" in e for e in self.errors()))
+
+    def test_invalid_provenance_type_is_reported(self):
+        self.update("shared/knowledge/documents.jsonl", provenance_type="made_up")
+        self.assertTrue(any("invalid provenance_type" in e for e in self.errors()))
+
+    # --- message and thread rules ------------------------------------------
+
+    def test_message_in_unknown_thread_is_reported(self):
+        self.update("shared/communications/messages.jsonl", thread_id="thread:missing")
+        errors = self.errors()
+        self.assertTrue(any("unknown thread_id 'thread:missing'" in e for e in errors), errors)
+
+    def test_thread_referencing_unknown_message_is_reported(self):
+        self.update("shared/communications/threads.jsonl", message_ids=["msg:missing"])
+        self.assertTrue(any("references unknown message 'msg:missing'" in e for e in self.errors()))
+
+    def test_reply_to_must_reference_an_earlier_message(self):
+        (self.root / "shared/communications/messages.jsonl").write_text(
+            json.dumps({
+                "message_id": "msg:one", "thread_id": "thread:one",
+                "timestamp": "2026-01-01T00:00:00Z", "sender": "agent", "target": "agent",
+                "type": "update", "content": "hi", "source_refs": [],
+                "provenance_type": "declared", "reply_to": "msg:later",
+            }) + "\n" + json.dumps({
+                "message_id": "msg:later", "thread_id": "thread:one",
+                "timestamp": "2026-01-01T00:00:01Z", "sender": "agent", "target": "agent",
+                "type": "reply", "content": "there", "source_refs": [],
+                "provenance_type": "declared",
+            }) + "\n",
+            encoding="utf-8",
+        )
+        self.update("shared/communications/threads.jsonl", message_ids=["msg:one", "msg:later"])
+        self.assertTrue(any("reply_to references a later/unknown message" in e for e in self.errors()))
+
+    def test_invalid_message_type_is_reported(self):
+        self.update("shared/communications/messages.jsonl", type="shout")
+        self.assertTrue(any("invalid message type 'shout'" in e for e in self.errors()))
+
+    # --- work, review and journal rules -------------------------------------
+
+    def test_unknown_work_dependency_is_reported(self):
+        self.update("shared/work/items.jsonl", depends_on=["work:missing"])
+        self.assertTrue(any("depends_on references unknown work item 'work:missing'" in e for e in self.errors()))
+
+    def test_verified_work_requires_non_pending_verification(self):
+        self.update("shared/work/items.jsonl", status="verified")
+        self.assertTrue(any("verified work must have non-pending verification" in e for e in self.errors()))
+
+    def test_review_of_unknown_work_item_is_reported(self):
+        self.update("shared/work/reviews.jsonl", work_id="work:missing")
+        self.assertTrue(any("work_id references unknown work item 'work:missing'" in e for e in self.errors()))
+
+    def test_non_sha_snapshot_commit_is_reported(self):
+        self.update("shared/state/snapshots.jsonl", source_commit="not-a-sha")
+        self.assertTrue(any("source_commit is not a Git SHA-like value" in e for e in self.errors()))
+
+    def test_duplicate_event_id_is_reported(self):
+        events = read_jsonl(self.root / "shared/state/events.jsonl")
+        write_jsonl(self.root / "shared/state/events.jsonl", events + [dict(events[0])])
+        self.assertTrue(any("duplicate id 'evt:one'" in e for e in self.errors()))
+
+    def test_missing_required_file_is_reported(self):
+        (self.root / "shared/decisions.jsonl").unlink()
+        errors = self.errors()
+        self.assertIn("missing required semantic file: shared/decisions.jsonl", errors)
+
+
+if __name__ == "__main__":
+    unittest.main()

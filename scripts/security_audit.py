@@ -20,11 +20,14 @@ PATTERNS = {
     "sender-authorizes": re.compile(r"(?i)\b(?:if|unless|when)\b[^\n]{0,100}\b(?:sender|agent_id)\b[^\n]{0,100}\b(?:authorize|permission|allow|admin|write)\b"),
 }
 
-ALLOW = {"SECURITY.md", "scripts/security_audit.py"}
+# Files whose purpose is to contain hazard text: the rules themselves, the
+# security policy that quotes them, and the fixture strings the audit is tested
+# against. Anything else in the repository is fair game.
+ALLOW = {"SECURITY.md", "scripts/security_audit.py", "tests/test_security_audit.py"}
 
 
-def files():
-    for path in ROOT.rglob("*"):
+def files(root: Path = ROOT):
+    for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in TEXT_EXTENSIONS:
             continue
         if any(part in SKIP for part in path.parts):
@@ -32,10 +35,11 @@ def files():
         yield path
 
 
-def main() -> int:
-    findings = []
-    for path in files():
-        rel = path.relative_to(ROOT).as_posix()
+def scan(root: Path = ROOT) -> list[tuple[str, int, str]]:
+    """Return (relative path, line number, hazard name) for every match."""
+    findings: list[tuple[str, int, str]] = []
+    for path in files(root):
+        rel = path.relative_to(root).as_posix()
         if rel in ALLOW:
             continue
         try:
@@ -48,6 +52,11 @@ def main() -> int:
                     continue
                 if pattern.search(line):
                     findings.append((rel, line_no, name))
+    return findings
+
+
+def main() -> int:
+    findings = scan(ROOT)
     if findings:
         for rel, line, name in findings:
             print(f"ERROR: {rel}:{line}: possible {name} hazard")

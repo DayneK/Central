@@ -71,7 +71,9 @@ def goal_cycle_ids(goals_by_id: dict[str, dict[str, Any]]) -> list[list[str]]:
     return cycles
 
 
-def validate_goal_file(path: Path, expected_agent: str | None = None) -> list[str]:
+def validate_goal_file(
+    path: Path, expected_agent: str | None = None, *, shared_registry: bool = False
+) -> list[str]:
     errors: list[str] = []
     try:
         data = read_json(path)
@@ -81,8 +83,12 @@ def validate_goal_file(path: Path, expected_agent: str | None = None) -> list[st
         return [f"{path}: root must be an object"]
     if data.get("schema_version") != "1.0":
         errors.append(f"{path}: schema_version should be '1.0'")
-    if expected_agent is None and data.get("registry") == "shared":
-        pass  # shared project registries are identified by "registry"/"scope", not agent_id
+    if shared_registry:
+        # Project registries are identified by registry/scope, never by agent_id.
+        if data.get("registry") != "shared":
+            errors.append(f"{path}: registry must be 'shared' for a project goal registry")
+        if not isinstance(data.get("scope"), str) or not data["scope"].strip():
+            errors.append(f"{path}: scope must be a non-empty string")
     elif not isinstance(data.get("agent_id"), str) or not data.get("agent_id"):
         errors.append(f"{path}: agent_id must be a non-empty string")
     elif expected_agent and data["agent_id"] != expected_agent:
@@ -171,7 +177,7 @@ def validate_repo(root: Path) -> list[str]:
     projects_dir = root / "projects"
     if projects_dir.is_dir():
         for shared_goals in sorted(projects_dir.glob("*/shared-goals.json")):
-            errors.extend(validate_goal_file(shared_goals))
+            errors.extend(validate_goal_file(shared_goals, shared_registry=True))
     shared_ledger = root / "shared" / "communications" / "log.jsonl"
     errors.extend(validate_jsonl(shared_ledger, ("timestamp", "sender", "target", "type", "content")))
     return errors

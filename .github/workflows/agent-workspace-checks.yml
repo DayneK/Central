@@ -1,35 +1,32 @@
 name: Central semantic workspace checks
 
+# The security audit scans every tracked text file in the repository, so the
+# path filters must cover every directory it reads - not just the data that the
+# semantic validator happens to inspect.
 on:
   push:
     paths:
       - "agents/**"
-      - "shared/communications/**"
-      - "shared/knowledge/**"
-      - "shared/state/**"
-      - "shared/decisions.jsonl"
-      - "shared/work/**"
-      - "shared/coordination/**"
-      - "projects/central/**"
-      - "scripts/agent_workspace.py"
-      - "scripts/semantic_validate.py"
-      - "scripts/security_audit.py"
+      - "shared/**"
+      - "projects/**"
+      - "system/**"
+      - "creative/**"
+      - "scripts/**"
       - "tests/**"
+      - "dashboard/**"
+      - "SECURITY.md"
       - ".github/workflows/agent-workspace-checks.yml"
   pull_request:
     paths:
       - "agents/**"
-      - "shared/communications/**"
-      - "shared/knowledge/**"
-      - "shared/state/**"
-      - "shared/decisions.jsonl"
-      - "shared/work/**"
-      - "shared/coordination/**"
-      - "projects/central/**"
-      - "scripts/agent_workspace.py"
-      - "scripts/semantic_validate.py"
-      - "scripts/security_audit.py"
+      - "shared/**"
+      - "projects/**"
+      - "system/**"
+      - "creative/**"
+      - "scripts/**"
       - "tests/**"
+      - "dashboard/**"
+      - "SECURITY.md"
       - ".github/workflows/agent-workspace-checks.yml"
   workflow_dispatch:
 

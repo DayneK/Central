@@ -39,12 +39,24 @@ jobs:
           python3 - <<'PY'
           import re
           from pathlib import Path
-          html = Path("dashboard/index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
-          assert scripts, "No inline application script found"
-          Path("/tmp/central-dashboard.js").write_text(scripts[-1], encoding="utf-8")
+
+          pages = sorted(Path("dashboard").glob("*.html"))
+          assert pages, "No dashboard pages found"
+          checks = []
+          for page in pages:
+              blocks = re.findall(r"<script>(.*?)</script>", page.read_text(encoding="utf-8"), re.S)
+              for index, block in enumerate(blocks):
+                  target = Path("/tmp") / f"{page.stem}-{index}.js"
+                  target.write_text(block, encoding="utf-8")
+                  checks.append(f"{page}:{index}\t{target}")
+          assert checks, "No inline application scripts found"
+          Path("/tmp/dashboard-script-checks.tsv").write_text("\n".join(checks) + "\n", encoding="utf-8")
+          print(f"Checking {len(checks)} inline script block(s) across {len(pages)} page(s)")
           PY
-          node --check /tmp/central-dashboard.js
+          while IFS=$'\t' read -r origin target; do
+            echo "node --check ${origin%%:*}"
+            node --check "$target"
+          done < /tmp/dashboard-script-checks.tsv
 
       - name: Upload dashboard artifact
         uses: actions/upload-pages-artifact@v3
