@@ -32,19 +32,21 @@ class CentralCliTests(unittest.TestCase):
     def test_check_reports_every_stage(self):
         with mock.patch("scripts.central.agent_workspace.validate_repo", return_value=[]), \
              mock.patch("scripts.central.semantic_validate.run", return_value=[]), \
-             mock.patch("scripts.central.security_audit.scan", return_value=[]):
+             mock.patch("scripts.central.security_audit.scan", return_value=[]), \
+             mock.patch("scripts.central.docs_check.check_docs", return_value=[]):
             out = io.StringIO()
             with redirect_stdout(out):
                 code = run_check(self.root, check_git=True)
         self.assertEqual(code, 0)
         text = out.getvalue()
-        for stage in ("workspace: ok", "semantic: ok", "security: ok"):
+        for stage in ("workspace: ok", "semantic: ok", "security: ok", "docs: ok"):
             self.assertIn(stage, text)
 
     def test_check_fails_when_one_stage_fails(self):
         with mock.patch("scripts.central.agent_workspace.validate_repo", return_value=["bad goal"]), \
              mock.patch("scripts.central.semantic_validate.run", return_value=[]), \
-             mock.patch("scripts.central.security_audit.scan", return_value=[]):
+             mock.patch("scripts.central.security_audit.scan", return_value=[]), \
+             mock.patch("scripts.central.docs_check.check_docs", return_value=[]):
             out = io.StringIO()
             with redirect_stdout(out):
                 code = run_check(self.root)
@@ -55,7 +57,8 @@ class CentralCliTests(unittest.TestCase):
     def test_check_forwards_git_flag(self):
         with mock.patch("scripts.central.agent_workspace.validate_repo", return_value=[]), \
              mock.patch("scripts.central.semantic_validate.run", return_value=[]) as semantic, \
-             mock.patch("scripts.central.security_audit.scan", return_value=[]):
+             mock.patch("scripts.central.security_audit.scan", return_value=[]), \
+             mock.patch("scripts.central.docs_check.check_docs", return_value=[]):
             run_check(self.root, check_git=True)
         self.assertEqual(semantic.call_args.kwargs, {"check_git": True})
 
@@ -70,6 +73,13 @@ class CentralCliTests(unittest.TestCase):
         report = json.loads(out.getvalue())
         self.assertEqual(report["status"], "attention")
         self.assertEqual(report["schema_version"], 2)
+
+    def test_docs_command_reports_missing_guides(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = main(["--root", str(self.root), "docs"])
+        self.assertEqual(code, 1)
+        self.assertIn("missing required document", out.getvalue())
 
     def test_security_command_passes_on_fixture(self):
         out = io.StringIO()

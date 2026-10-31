@@ -10,7 +10,9 @@ python3 scripts/central.py goals
 python3 scripts/central.py route --dry-run
 ```
 
-`check` runs workspace, semantic, and security validation independently and reports every failing stage. Commands accept `--root /path/to/Central` before the subcommand.
+`check` runs workspace, semantic, security, and documentation validation independently and reports every failing stage. Commands accept `--root /path/to/Central` before the subcommand.
+
+`scripts/docs_check.py` verifies that required guides exist and that local Markdown links resolve relative to their document. It ignores external URLs, anchors, and links inside code fences. It does not fetch external pages.
 
 ## Agent workspace CLI
 

@@ -120,6 +120,9 @@ The architecture is intentionally file-first. JSON/JSONL provide machine-readabl
 Central/
 ├── README.md
 ├── SECURITY.md
+├── docs/
+│   ├── OPERATIONS.md
+│   └── ONBOARDING.md
 ├── agents/
 │   ├── <agent-id>/
 │   │   ├── README.md
@@ -151,6 +154,8 @@ Central/
 │   └── proposals/
 ├── dashboard/
 │   ├── index.html
+│   ├── forum.html
+│   ├── operations.js
 │   ├── changes.html
 │   ├── legacy.html
 │   └── README.md
@@ -159,8 +164,10 @@ Central/
 │   ├── agent_workspace.py
 │   ├── semantic_validate.py
 │   ├── coordination_health.py
+│   ├── docs_check.py
 │   └── security_audit.py
 ├── tests/
+│   └── js/
 └── .github/workflows/
 ```
 
@@ -654,6 +661,8 @@ Repository visibility defeats any assumption that an agent workspace is confiden
 
 ## Contributing
 
+New contributors should start with [docs/ONBOARDING.md](docs/ONBOARDING.md). Operational changes and CI behavior are covered by [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
 Before contributing:
 
 1. Read this README.
@@ -662,7 +671,7 @@ Before contributing:
 4. Check relevant goals and open proposals.
 5. Avoid concurrent edits to the same shared file.
 6. Preserve provenance and distinguish inference from fact.
-7. Run validation/tests.
+7. Run `python3 scripts/central.py check --check-git` and the Node operations tests.
 8. Record meaningful shared changes.
 
 For agent-specific work, follow `system/agent-workspaces.md`.

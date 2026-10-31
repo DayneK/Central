@@ -11,10 +11,11 @@ import sys
 from pathlib import Path
 
 try:  # tests import this as scripts.central
-    from scripts import agent_workspace, coordination_health, security_audit, semantic_validate
+    from scripts import agent_workspace, coordination_health, docs_check, security_audit, semantic_validate
 except ModuleNotFoundError:  # direct execution: python3 scripts/central.py
     import agent_workspace
     import coordination_health
+    import docs_check
     import security_audit
     import semantic_validate
 
@@ -38,6 +39,11 @@ def run_check(root: Path, *, check_git: bool = False) -> int:
         stages.append(("security", [f"{path}:{line}: possible {message} hazard" for path, line, message in findings]))
     except (OSError, ValueError) as exc:
         stages.append(("security", [str(exc)]))
+
+    try:
+        stages.append(("docs", docs_check.check_docs(root)))
+    except (OSError, ValueError) as exc:
+        stages.append(("docs", [str(exc)]))
 
     failed = 0
     for name, errors in stages:
@@ -69,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("workspace", help="validate agent workspaces and goal registries")
     sub.add_parser("security", help="scan tracked text for configured static hazards")
+    sub.add_parser("docs", help="check local documentation links and required guides")
     sub.add_parser("goals", help="print goal dependencies and contingencies")
 
     route = sub.add_parser("route", help="route shared ledger messages into agent inboxes")
@@ -104,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print("Security audit passed: no configured static hazards detected.")
         return 0
+    if args.command == "docs":
+        return docs_check.main(["--root", str(root)])
     if args.command == "goals":
         return agent_workspace.main(["--root", str(root), "goals"])
     if args.command == "route":
