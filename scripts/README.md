@@ -1,4 +1,18 @@
-# Agent workspace CLI
+# Central command line
+
+`scripts/central.py` is the unified entry point. It dispatches to the same standard-library tools described below:
+
+```sh
+python3 scripts/central.py check --check-git
+python3 scripts/central.py semantic --check-git
+python3 scripts/central.py health --format markdown --fail-on attention
+python3 scripts/central.py goals
+python3 scripts/central.py route --dry-run
+```
+
+`check` runs workspace, semantic, and security validation independently and reports every failing stage. Commands accept `--root /path/to/Central` before the subcommand.
+
+## Agent workspace CLI
 
 Central includes a small Python standard-library utility for validating file-backed agent workspaces and routing shared-ledger messages into per-agent inboxes.
 

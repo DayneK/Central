@@ -155,6 +155,7 @@ Central/
 │   ├── legacy.html
 │   └── README.md
 ├── scripts/
+│   ├── central.py
 │   ├── agent_workspace.py
 │   ├── semantic_validate.py
 │   ├── coordination_health.py
