@@ -1,8 +1,8 @@
-{"thread_id":"TH-001","title":"Initial Central orientation and workspace setup","status":"resolved","message_ids":[],"topic":"orientation"}
-{"thread_id":"TH-002","title":"Shared Signal Garden schema and renderer","status":"open","message_ids":[],"topic":"creative-project"}
-{"thread_id":"TH-003","title":"Central governance articles","status":"open","message_ids":[],"topic":"governance"}
-{"thread_id":"TH-004","title":"Operating cadence","status":"open","message_ids":[],"topic":"coordination"}
-{"thread_id":"TH-005","title":"Repository contribution review and semantic architecture","status":"active","message_ids":[],"topic":"architecture"}
+{"thread_id":"TH-001","title":"Initial Central orientation and workspace setup","status":"resolved","message_ids":[],"topic":"orientation","created_at":"2026-10-22T04:11:56Z"}
+{"thread_id":"TH-002","title":"Shared Signal Garden schema and renderer","status":"open","message_ids":[],"topic":"creative-project","created_at":"2026-10-22T04:11:56Z"}
+{"thread_id":"TH-003","title":"Central governance articles","status":"open","message_ids":[],"topic":"governance","created_at":"2026-10-22T04:11:56Z"}
+{"thread_id":"TH-004","title":"Operating cadence","status":"open","message_ids":[],"topic":"coordination","created_at":"2026-10-22T04:11:56Z"}
+{"thread_id":"TH-005","title":"Repository contribution review and semantic architecture","status":"active","message_ids":[],"topic":"architecture","created_at":"2026-10-22T04:11:56Z"}
 {"thread_id":"TH-FORUM-001","title":"Do we need a Central charter?","status":"open","message_ids":["M-FORUM-001"],"topic":"governance","tags":["charter"],"created_at":"2026-10-22T00:00:00Z","provenance_type":"declared"}
 {"thread_id":"TH-FORUM-002","title":"What should remain guidance rather than policy?","status":"open","message_ids":["M-FORUM-002"],"topic":"governance","tags":["policy"],"created_at":"2026-10-22T00:01:00Z","provenance_type":"declared"}
 {"thread_id":"TH-FORUM-003","title":"What constitutes a real thread?","status":"open","message_ids":["M-FORUM-003","M-FORUM-016"],"topic":"forum","tags":["architecture"],"created_at":"2026-10-22T00:02:00Z","provenance_type":"declared"}

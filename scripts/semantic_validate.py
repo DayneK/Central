@@ -15,6 +15,19 @@ PROVENANCE = {"declared", "observed", "evidenced", "inferred", "unknown_disputed
 THREAD_STATUS = {"open", "active", "decision_pending", "resolved", "dormant", "superseded", "archived"}
 WORK_STATUS = {"proposed", "ready", "active", "blocked", "implemented", "verified", "cancelled", "superseded"}
 MESSAGE_TYPES = {"handshake", "proposal", "query", "update", "evidence", "decision", "reply"}
+PRIORITIES = {"low", "normal", "high", "critical"}
+VERIFICATION_STATUS = {"pending", "in_progress", "verified", "failed", "expired"}
+REVIEW_RESULTS = {
+    "pending",
+    "pass",
+    "approved",
+    "changes_requested",
+    "rejected",
+    "implemented_pending_verification",
+    "verified",
+}
+DECISION_STATUS = {"proposed", "active", "accepted", "superseded", "rejected", "deferred", "amended"}
+ISO_TIMESTAMP = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
 
 def jsonl(path: Path):
@@ -37,19 +50,73 @@ def require_fields(path: Path, line: int, item: dict, fields: tuple[str, ...], e
             errors.append(f"{path}:{line}: missing {field}")
 
 
+def require_strings(path: Path, line: int, item: dict, fields: tuple[str, ...], errors: list[str]):
+    """Require non-empty strings, rather than merely present keys."""
+    for field in fields:
+        if field not in item:
+            continue  # require_fields() owns the "missing" message
+        value = item[field]
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{path}:{line}: missing/invalid {field}")
+
+
+def require_timestamp(path: Path, line: int, item: dict, field: str, errors: list[str]):
+    value = item.get(field)
+    if not isinstance(value, str) or not ISO_TIMESTAMP.fullmatch(value):
+        errors.append(f"{path}:{line}: {field} must be a UTC ISO-8601 timestamp")
+
+
+def check_string_list(
+    root: Path,
+    path: Path,
+    line: int,
+    item: dict,
+    field: str,
+    errors: list[str],
+    *,
+    min_items: int = 0,
+    check_paths: bool = False,
+) -> bool:
+    """Validate a list of strings; optionally require each local path to exist.
+
+    Returns True only when the field is a usable list, so callers can avoid
+    running reference checks against a malformed value.
+    """
+    value = item.get(field)
+    if not isinstance(value, list):
+        errors.append(f"{path}:{line}: {field} must be a list")
+        return False
+    if len(value) < min_items:
+        errors.append(f"{path}:{line}: {field} must contain at least {min_items} item(s)")
+    valid = True
+    for entry in value:
+        if not isinstance(entry, str) or not entry.strip():
+            errors.append(f"{path}:{line}: {field} entries must be non-empty strings")
+            valid = False
+            continue
+        if check_paths and "://" not in entry and not (root / entry).exists():
+            errors.append(f"{path}:{line}: {field} references missing path {entry!r}")
+            valid = False
+    return valid
+
+
 def validate_documents(root: Path):
     errors = []
     ids = set()
     path = root / "shared/knowledge/documents.jsonl"
     for line, item in jsonl(path):
-        for field in ("id", "type", "title", "provenance_type", "status"):
-            if not isinstance(item.get(field), str) or not item[field]:
-                errors.append(f"{path}:{line}: missing/invalid {field}")
-        if item.get("id") in ids:
+        require_fields(path, line, item, ("id", "type", "title", "provenance_type", "status", "path"), errors)
+        require_strings(path, line, item, ("id", "type", "title", "provenance_type", "status", "path"), errors)
+        if isinstance(item.get("id"), str) and item["id"] in ids:
             errors.append(f"{path}:{line}: duplicate id {item['id']!r}")
-        ids.add(item.get("id"))
+        if isinstance(item.get("id"), str):
+            ids.add(item["id"])
         if item.get("provenance_type") not in PROVENANCE:
             errors.append(f"{path}:{line}: invalid provenance_type")
+        document_path = item.get("path")
+        if isinstance(document_path, str) and document_path.strip():
+            if "://" not in document_path and not (root / document_path).exists():
+                errors.append(f"{path}:{line}: path references missing file {document_path!r}")
     return errors, ids
 
 
@@ -58,12 +125,24 @@ def validate_relations(root: Path, known_ids: set[str]):
     ids = set()
     path = root / "shared/knowledge/relations.jsonl"
     for line, item in jsonl(path):
-        for field in ("id", "subject", "predicate", "object", "provenance_type", "status"):
-            if not isinstance(item.get(field), str) or not item[field]:
-                errors.append(f"{path}:{line}: missing/invalid {field}")
-        if item.get("id") in ids:
+        require_fields(
+            path,
+            line,
+            item,
+            ("id", "subject", "predicate", "object", "provenance_type", "status"),
+            errors,
+        )
+        require_strings(
+            path,
+            line,
+            item,
+            ("id", "subject", "predicate", "object", "provenance_type", "status"),
+            errors,
+        )
+        if isinstance(item.get("id"), str) and item["id"] in ids:
             errors.append(f"{path}:{line}: duplicate relation id {item['id']!r}")
-        ids.add(item.get("id"))
+        if isinstance(item.get("id"), str):
+            ids.add(item["id"])
         if item.get("provenance_type") not in PROVENANCE:
             errors.append(f"{path}:{line}: invalid provenance_type")
         for field in ("subject", "object"):
@@ -76,23 +155,47 @@ def validate_relations(root: Path, known_ids: set[str]):
 def validate_messages(root: Path):
     errors = []
     path = root / "shared/communications/messages.jsonl"
-    message_ids = set()
-    thread_ids = set()
+    message_ids: set[str] = set()
+    thread_ids: set[str] = set()
     messages = []
     for line, item in jsonl(path):
-        require_fields(path, line, item, ("message_id", "thread_id", "timestamp", "sender", "target", "type", "content", "source_refs", "provenance_type"), errors)
+        require_fields(
+            path,
+            line,
+            item,
+            (
+                "message_id",
+                "thread_id",
+                "timestamp",
+                "sender",
+                "target",
+                "type",
+                "content",
+                "source_refs",
+                "provenance_type",
+            ),
+            errors,
+        )
+        require_strings(
+            path,
+            line,
+            item,
+            ("message_id", "thread_id", "timestamp", "sender", "target", "content", "provenance_type"),
+            errors,
+        )
+        require_timestamp(path, line, item, "timestamp", errors)
         mid = item.get("message_id")
-        if mid in message_ids:
+        if isinstance(mid, str) and mid in message_ids:
             errors.append(f"{path}:{line}: duplicate message_id {mid!r}")
-        message_ids.add(mid)
-        if item.get("thread_id"):
+        if isinstance(mid, str):
+            message_ids.add(mid)
+        if isinstance(item.get("thread_id"), str) and item["thread_id"]:
             thread_ids.add(item["thread_id"])
         if item.get("type") not in MESSAGE_TYPES:
             errors.append(f"{path}:{line}: invalid message type {item.get('type')!r}")
         if item.get("provenance_type") not in PROVENANCE:
             errors.append(f"{path}:{line}: invalid provenance_type")
-        if not isinstance(item.get("source_refs"), list):
-            errors.append(f"{path}:{line}: source_refs must be a list")
+        check_string_list(root, path, line, item, "source_refs", errors, check_paths=True)
         reply = item.get("reply_to")
         if reply is not None and reply not in message_ids:
             errors.append(f"{path}:{line}: reply_to references a later/unknown message {reply!r}")
@@ -100,24 +203,55 @@ def validate_messages(root: Path):
     return errors, message_ids, thread_ids, messages
 
 
-def validate_threads(root: Path, message_ids: set[str]):
+def validate_threads(root: Path, message_ids: set[str], messages: list[dict] | None = None):
     errors = []
     ids = set()
     path = root / "shared/communications/threads.jsonl"
+    messages = messages or []
     for line, item in jsonl(path):
-        require_fields(path, line, item, ("thread_id", "title", "status", "message_ids", "topic"), errors)
+        require_fields(
+            path,
+            line,
+            item,
+            ("thread_id", "title", "status", "message_ids", "topic", "created_at"),
+            errors,
+        )
+        require_strings(path, line, item, ("thread_id", "title", "status", "topic", "created_at"), errors)
+        require_timestamp(path, line, item, "created_at", errors)
         tid = item.get("thread_id")
-        if tid in ids:
+        if isinstance(tid, str) and tid in ids:
             errors.append(f"{path}:{line}: duplicate thread_id {tid!r}")
-        ids.add(tid)
+        if isinstance(tid, str):
+            ids.add(tid)
         if item.get("status") not in THREAD_STATUS:
             errors.append(f"{path}:{line}: invalid thread status {item.get('status')!r}")
-        if not isinstance(item.get("message_ids"), list):
-            errors.append(f"{path}:{line}: message_ids must be a list")
-        else:
-            for mid in item["message_ids"]:
-                if mid not in message_ids:
-                    errors.append(f"{path}:{line}: message_ids references unknown message {mid!r}")
+        if item.get("provenance_type") is not None and item.get("provenance_type") not in PROVENANCE:
+            errors.append(f"{path}:{line}: invalid provenance_type")
+        if "tags" in item:
+            check_string_list(root, path, line, item, "tags", errors)
+        if not check_string_list(root, path, line, item, "message_ids", errors):
+            continue
+        listed = item["message_ids"]
+        if len(set(listed)) != len(listed):
+            errors.append(f"{path}:{line}: message_ids contains duplicates")
+        for mid in listed:
+            if mid not in message_ids:
+                errors.append(f"{path}:{line}: message_ids references unknown message {mid!r}")
+            else:
+                matching = next((m for m in messages if m.get("message_id") == mid), None)
+                if matching is not None and matching.get("thread_id") != tid:
+                    errors.append(
+                        f"{path}:{line}: message {mid!r} belongs to thread "
+                        f"{matching.get('thread_id')!r}, not {tid!r}"
+                    )
+        if isinstance(tid, str) and messages:
+            missing = sorted(
+                str(m.get("message_id"))
+                for m in messages
+                if m.get("thread_id") == tid and m.get("message_id") not in listed
+            )
+            for mid in missing:
+                errors.append(f"{path}:{line}: thread message_ids omits message {mid!r}")
     return errors, ids
 
 
@@ -128,14 +262,43 @@ def validate_work(root: Path):
     path = root / "shared/work/items.jsonl"
     for line, item in jsonl(path):
         records.append((line, item))
-        require_fields(path, line, item, ("id", "title", "description", "status", "priority", "owner", "depends_on", "source_refs", "acceptance_criteria", "verification", "provenance_type"), errors)
+        require_fields(
+            path,
+            line,
+            item,
+            (
+                "id",
+                "title",
+                "description",
+                "status",
+                "priority",
+                "owner",
+                "depends_on",
+                "source_refs",
+                "acceptance_criteria",
+                "verification",
+                "provenance_type",
+            ),
+            errors,
+        )
+        require_strings(
+            path,
+            line,
+            item,
+            ("id", "title", "description", "owner", "provenance_type"),
+            errors,
+        )
         wid = item.get("id")
-        if wid in ids:
+        if isinstance(wid, str) and wid in ids:
             errors.append(f"{path}:{line}: duplicate work id {wid!r}")
-        ids.add(wid)
+        if isinstance(wid, str):
+            ids.add(wid)
         status = item.get("status")
         if not isinstance(status, str) or status not in WORK_STATUS:
             errors.append(f"{path}:{line}: invalid work status {status!r}")
+        priority = item.get("priority")
+        if not isinstance(priority, str) or priority not in PRIORITIES:
+            errors.append(f"{path}:{line}: invalid work priority {priority!r}")
         provenance = item.get("provenance_type")
         if not isinstance(provenance, str) or provenance not in PROVENANCE:
             errors.append(f"{path}:{line}: invalid provenance_type")
@@ -144,13 +307,23 @@ def validate_work(root: Path):
             errors.append(f"{path}:{line}: depends_on must be a list")
         elif any(not isinstance(dep, str) for dep in dependencies):
             errors.append(f"{path}:{line}: depends_on entries must be strings")
+        check_string_list(root, path, line, item, "source_refs", errors, check_paths=True)
+        check_string_list(root, path, line, item, "acceptance_criteria", errors, min_items=1)
         verification = item.get("verification")
         if not isinstance(verification, dict):
             errors.append(f"{path}:{line}: verification must be an object")
-        elif status == "verified":
+        else:
             verification_status = verification.get("status")
-            if verification_status is None or verification_status == "pending":
-                errors.append(f"{path}:{line}: verified work must have non-pending verification")
+            if not isinstance(verification_status, str) or verification_status not in VERIFICATION_STATUS:
+                errors.append(f"{path}:{line}: invalid verification status {verification_status!r}")
+            evidence_ok = check_string_list(root, path, line, verification, "evidence_refs", errors, check_paths=True)
+            if status == "verified":
+                if verification_status == "pending":
+                    errors.append(f"{path}:{line}: verified work must have non-pending verification")
+                elif verification_status != "verified":
+                    errors.append(f"{path}:{line}: verified work must have verification status 'verified'")
+                elif evidence_ok and not verification.get("evidence_refs"):
+                    errors.append(f"{path}:{line}: verified work must record verification evidence")
     for line, item in records:
         dependencies = item.get("depends_on")
         if isinstance(dependencies, list):
@@ -165,39 +338,156 @@ def validate_reviews(root: Path, work_ids: set[str]):
     ids = set()
     path = root / "shared/work/reviews.jsonl"
     for line, item in jsonl(path):
-        require_fields(path, line, item, ("id", "timestamp", "work_id", "reviewer", "result", "criteria_checked", "evidence_refs"), errors)
+        require_fields(
+            path,
+            line,
+            item,
+            ("id", "timestamp", "work_id", "reviewer", "result", "criteria_checked", "evidence_refs"),
+            errors,
+        )
+        require_strings(path, line, item, ("id", "work_id", "reviewer", "result"), errors)
+        require_timestamp(path, line, item, "timestamp", errors)
         rid = item.get("id")
-        if rid in ids:
+        if isinstance(rid, str) and rid in ids:
             errors.append(f"{path}:{line}: duplicate review id {rid!r}")
-        ids.add(rid)
+        if isinstance(rid, str):
+            ids.add(rid)
         if item.get("work_id") not in work_ids:
             errors.append(f"{path}:{line}: work_id references unknown work item {item.get('work_id')!r}")
+        if item.get("result") not in REVIEW_RESULTS:
+            errors.append(f"{path}:{line}: invalid review result {item.get('result')!r}")
+        check_string_list(root, path, line, item, "criteria_checked", errors, min_items=1)
+        check_string_list(root, path, line, item, "evidence_refs", errors, check_paths=True)
     return errors
 
 
 def validate_events(root: Path):
     errors = []
-    for relative, fields in {
-        "shared/state/events.jsonl": ("id", "timestamp", "type", "summary", "actors", "source_refs"),
-        "shared/state/snapshots.jsonl": ("id", "timestamp", "label", "source_commit", "state_file"),
-        "shared/decisions.jsonl": ("id", "timestamp", "decision", "context", "alternatives", "rationale", "status", "affected_goals", "evidence", "review_trigger"),
-    }.items():
-        path = root / relative
-        if not path.is_file():
-            continue  # validate_paths() reports the missing file
-        ids = set()
-        try:
-            for line, item in jsonl(path):
-                require_fields(path, line, item, fields, errors)
-                key = item.get(fields[0])
-                if key in ids:
-                    errors.append(f"{path}:{line}: duplicate id {key!r}")
+    path = root / "shared/state/events.jsonl"
+    ids = set()
+    try:
+        for line, item in jsonl(path):
+            fields = ("id", "timestamp", "type", "summary", "actors", "source_refs")
+            require_fields(path, line, item, fields, errors)
+            require_strings(path, line, item, ("id", "timestamp", "type", "summary"), errors)
+            require_timestamp(path, line, item, "timestamp", errors)
+            key = item.get("id")
+            if isinstance(key, str) and key in ids:
+                errors.append(f"{path}:{line}: duplicate id {key!r}")
+            if isinstance(key, str):
                 ids.add(key)
-                if relative.endswith("snapshots.jsonl") and item.get("source_commit") and not re.fullmatch(r"[0-9a-f]{7,40}", str(item["source_commit"])):
-                    errors.append(f"{path}:{line}: source_commit is not a Git SHA-like value")
-        except (OSError, ValueError, TypeError) as exc:
-            errors.append(f"{path}: {exc}")
+            check_string_list(root, path, line, item, "actors", errors, min_items=1)
+            check_string_list(root, path, line, item, "source_refs", errors, check_paths=True)
+    except (OSError, ValueError, TypeError) as exc:
+        errors.append(f"{path}: {exc}")
     return errors
+
+
+def validate_snapshots(root: Path):
+    errors = []
+    path = root / "shared/state/snapshots.jsonl"
+    ids = set()
+    try:
+        for line, item in jsonl(path):
+            fields = ("id", "timestamp", "label", "source_commit", "state_file")
+            require_fields(path, line, item, fields, errors)
+            require_strings(path, line, item, ("id", "label", "source_commit", "state_file"), errors)
+            require_timestamp(path, line, item, "timestamp", errors)
+            key = item.get("id")
+            if isinstance(key, str) and key in ids:
+                errors.append(f"{path}:{line}: duplicate id {key!r}")
+            if isinstance(key, str):
+                ids.add(key)
+            commit = item.get("source_commit")
+            if isinstance(commit, str) and commit and not re.fullmatch(r"[0-9a-f]{7,40}", commit):
+                errors.append(f"{path}:{line}: source_commit is not a Git SHA-like value")
+            state_file = item.get("state_file")
+            if isinstance(state_file, str) and state_file.strip():
+                if "://" not in state_file and not (root / state_file).exists():
+                    errors.append(f"{path}:{line}: state_file references missing file {state_file!r}")
+    except (OSError, ValueError, TypeError) as exc:
+        errors.append(f"{path}: {exc}")
+    return errors
+
+
+def validate_decisions(
+    root: Path,
+    goal_ids: set[str] | None,
+    work_ids: set[str] | None,
+    thread_ids: set[str] | None,
+):
+    errors = []
+    ids = set()
+    path = root / "shared/decisions.jsonl"
+    for line, item in jsonl(path):
+        fields = (
+            "id",
+            "timestamp",
+            "decision",
+            "context",
+            "alternatives",
+            "rationale",
+            "status",
+            "affected_goals",
+            "evidence",
+            "review_trigger",
+        )
+        require_fields(path, line, item, fields, errors)
+        require_strings(
+            path,
+            line,
+            item,
+            ("id", "timestamp", "decision", "context", "rationale", "status", "review_trigger"),
+            errors,
+        )
+        require_timestamp(path, line, item, "timestamp", errors)
+        key = item.get("id")
+        if isinstance(key, str) and key in ids:
+            errors.append(f"{path}:{line}: duplicate id {key!r}")
+        if isinstance(key, str):
+            ids.add(key)
+        if item.get("status") not in DECISION_STATUS:
+            errors.append(f"{path}:{line}: invalid decision status {item.get('status')!r}")
+        check_string_list(root, path, line, item, "alternatives", errors)
+        check_string_list(root, path, line, item, "evidence", errors, check_paths=True)
+        if check_string_list(root, path, line, item, "affected_goals", errors) and goal_ids is not None:
+            for goal_id in item["affected_goals"]:
+                if goal_id not in goal_ids:
+                    errors.append(f"{path}:{line}: affected_goals references unknown goal {goal_id!r}")
+        if "related_work_ids" in item:
+            if check_string_list(root, path, line, item, "related_work_ids", errors) and work_ids is not None:
+                for work_id in item["related_work_ids"]:
+                    if work_id not in work_ids:
+                        errors.append(f"{path}:{line}: related_work_ids references unknown work item {work_id!r}")
+        if "origin_thread_ids" in item:
+            if check_string_list(root, path, line, item, "origin_thread_ids", errors) and thread_ids is not None:
+                for thread_id in item["origin_thread_ids"]:
+                    if thread_id not in thread_ids:
+                        errors.append(f"{path}:{line}: origin_thread_ids references unknown thread {thread_id!r}")
+    return errors
+
+
+def collect_goal_ids(root: Path) -> set[str]:
+    """Collect goal IDs across agent and shared registries.
+
+    Agent goal registries are validated in detail by agent_workspace.py; this
+    only builds the reference set needed to resolve decision records.
+    """
+    ids: set[str] = set()
+    paths = sorted((root / "agents").glob("*/goals/goals.json"))
+    paths += sorted((root / "projects").glob("*/shared-goals.json"))
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue  # the workspace validator reports malformed goal files
+        goals = data.get("goals") if isinstance(data, dict) else None
+        if not isinstance(goals, list):
+            continue
+        for goal in goals:
+            if isinstance(goal, dict) and isinstance(goal.get("id"), str):
+                ids.add(goal["id"])
+    return ids
 
 
 def validate_paths(root: Path):
@@ -237,6 +527,7 @@ def run(root: Path) -> list[str]:
     """
     errors: list[str] = []
     errors.extend(validate_paths(root))
+    goal_ids = collect_goal_ids(root)
 
     # Knowledge documents, then the relations whose endpoints must be documents.
     if present(root, "shared/knowledge/documents.jsonl"):
@@ -249,21 +540,27 @@ def run(root: Path) -> list[str]:
             errors.append(str(exc))
 
     # Messages, the threads that contain them, and the cross-reference between.
+    message_ids: set[str] = set()
+    thread_ids: set[str] | None = None
     if present(root, "shared/communications/messages.jsonl"):
         try:
-            message_errors, message_ids, _, _ = validate_messages(root)
+            message_errors, message_ids, _, messages = validate_messages(root)
             errors.extend(message_errors)
             if present(root, "shared/communications/threads.jsonl"):
-                thread_errors, thread_ids = validate_threads(root, message_ids)
+                thread_errors, thread_ids = validate_threads(root, message_ids, messages)
                 errors.extend(thread_errors)
                 # Validate that every modern message points at a registered thread.
                 for line, item in jsonl(root / "shared/communications/messages.jsonl"):
                     if item.get("thread_id") not in thread_ids:
-                        errors.append(f"shared/communications/messages.jsonl:{line}: unknown thread_id {item.get('thread_id')!r}")
+                        errors.append(
+                            f"shared/communications/messages.jsonl:{line}: "
+                            f"unknown thread_id {item.get('thread_id')!r}"
+                        )
         except (OSError, ValueError) as exc:
             errors.append(str(exc))
 
     # Work items, then the reviews that must reference them.
+    work_ids: set[str] | None = None
     if present(root, "shared/work/items.jsonl"):
         try:
             work_errors, work_ids = validate_work(root)
@@ -273,12 +570,16 @@ def run(root: Path) -> list[str]:
         except (OSError, ValueError) as exc:
             errors.append(str(exc))
 
-    # The three journals are independent of one another; validate_events skips
-    # any of them that is missing, because validate_paths already reported it.
-    try:
+    # Event, snapshot, and decision journals are independent files.
+    if present(root, "shared/state/events.jsonl"):
         errors.extend(validate_events(root))
-    except (OSError, ValueError) as exc:
-        errors.append(str(exc))
+    if present(root, "shared/state/snapshots.jsonl"):
+        errors.extend(validate_snapshots(root))
+    if present(root, "shared/decisions.jsonl"):
+        try:
+            errors.extend(validate_decisions(root, goal_ids, work_ids, thread_ids))
+        except (OSError, ValueError, TypeError) as exc:
+            errors.append(f"{root / 'shared/decisions.jsonl'}: {exc}")
 
     return errors
 

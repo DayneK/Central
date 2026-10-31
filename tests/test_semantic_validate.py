@@ -25,9 +25,12 @@ def read_jsonl(path: Path) -> list[dict]:
 
 def build_substrate(root: Path) -> None:
     """Write the smallest substrate that satisfies every semantic rule."""
+    (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    (root / "shared/communications").mkdir(parents=True, exist_ok=True)
+    (root / "shared/communications/state.md").write_text("# State\n", encoding="utf-8")
     write_jsonl(root / "shared/knowledge/documents.jsonl", [{
         "id": "doc:one", "type": "document", "title": "One",
-        "provenance_type": "declared", "status": "active",
+        "provenance_type": "declared", "status": "active", "path": "README.md",
     }])
     write_jsonl(root / "shared/knowledge/relations.jsonl", [{
         "id": "rel:one", "subject": "doc:one", "predicate": "defines",
@@ -36,6 +39,7 @@ def build_substrate(root: Path) -> None:
     write_jsonl(root / "shared/communications/threads.jsonl", [{
         "thread_id": "thread:one", "title": "Thread", "status": "open",
         "topic": "testing", "message_ids": ["msg:one"],
+        "created_at": "2026-01-01T00:00:00Z",
     }])
     write_jsonl(root / "shared/communications/messages.jsonl", [{
         "message_id": "msg:one", "thread_id": "thread:one",
@@ -46,12 +50,12 @@ def build_substrate(root: Path) -> None:
     write_jsonl(root / "shared/work/items.jsonl", [{
         "id": "work:one", "title": "Work", "description": "d", "status": "active",
         "priority": "high", "owner": "agent", "depends_on": [], "source_refs": [],
-        "acceptance_criteria": ["done"], "verification": {"status": "pending"},
+        "acceptance_criteria": ["done"], "verification": {"status": "pending", "evidence_refs": []},
         "provenance_type": "declared",
     }])
     write_jsonl(root / "shared/work/reviews.jsonl", [{
         "id": "review:one", "timestamp": "2026-01-01T00:00:00Z", "work_id": "work:one",
-        "reviewer": "agent", "result": "pass", "criteria_checked": [], "evidence_refs": [],
+        "reviewer": "agent", "result": "pass", "criteria_checked": ["done"], "evidence_refs": [],
     }])
     write_jsonl(root / "shared/state/events.jsonl", [{
         "id": "evt:one", "timestamp": "2026-01-01T00:00:00Z", "type": "note",
@@ -59,7 +63,7 @@ def build_substrate(root: Path) -> None:
     }])
     write_jsonl(root / "shared/state/snapshots.jsonl", [{
         "id": "snap:one", "timestamp": "2026-01-01T00:00:00Z", "label": "l",
-        "source_commit": "abc1234", "state_file": "shared/state/x.json",
+        "source_commit": "abc1234", "state_file": "shared/communications/state.md",
     }])
     write_jsonl(root / "shared/decisions.jsonl", [{
         "id": "dec:one", "timestamp": "2026-01-01T00:00:00Z", "decision": "d",
@@ -110,6 +114,54 @@ class SemanticValidateTests(unittest.TestCase):
         self.assertEqual(spy.call_count, 1)
 
     # --- document and relation rules ---------------------------------------
+
+    def test_document_path_must_exist(self):
+        self.update("shared/knowledge/documents.jsonl", path="missing/document.md")
+        errors = self.errors()
+        self.assertTrue(any("path references missing file 'missing/document.md'" in e for e in errors), errors)
+
+    def test_invalid_timestamp_is_reported(self):
+        self.update("shared/communications/messages.jsonl", timestamp="yesterday")
+        errors = self.errors()
+        self.assertTrue(any("timestamp must be a UTC ISO-8601 timestamp" in e for e in errors), errors)
+
+    def test_missing_source_path_is_reported(self):
+        self.update("shared/state/events.jsonl", source_refs=["missing/event-source.md"])
+        errors = self.errors()
+        self.assertTrue(any("source_refs references missing path 'missing/event-source.md'" in e for e in errors), errors)
+
+    def test_thread_must_list_message_from_its_thread(self):
+        self.update("shared/communications/threads.jsonl", message_ids=[])
+        errors = self.errors()
+        self.assertTrue(any("thread message_ids omits message 'msg:one'" in e for e in errors), errors)
+
+    def test_message_must_belong_to_the_thread_that_lists_it(self):
+        write_jsonl(self.root / "shared/communications/threads.jsonl", [{
+            "thread_id": "thread:one", "title": "Thread", "status": "open",
+            "topic": "testing", "message_ids": ["msg:one"],
+            "created_at": "2026-01-01T00:00:00Z",
+        }, {
+            "thread_id": "thread:two", "title": "Other", "status": "open",
+            "topic": "testing", "message_ids": ["msg:one"],
+            "created_at": "2026-01-01T00:00:00Z",
+        }])
+        errors = self.errors()
+        self.assertTrue(any("belongs to thread 'thread:one', not 'thread:two'" in e for e in errors), errors)
+
+    def test_invalid_work_priority_is_reported(self):
+        self.update("shared/work/items.jsonl", priority="urgent")
+        errors = self.errors()
+        self.assertTrue(any("invalid work priority 'urgent'" in e for e in errors), errors)
+
+    def test_work_requires_acceptance_criteria(self):
+        self.update("shared/work/items.jsonl", acceptance_criteria=[])
+        errors = self.errors()
+        self.assertTrue(any("acceptance_criteria must contain at least 1 item" in e for e in errors), errors)
+
+    def test_verified_work_requires_verification_evidence(self):
+        self.update("shared/work/items.jsonl", status="verified", verification={"status": "verified", "evidence_refs": []})
+        errors = self.errors()
+        self.assertTrue(any("verified work must record verification evidence" in e for e in errors), errors)
 
     def test_duplicate_document_id_is_reported(self):
         docs = read_jsonl(self.root / "shared/knowledge/documents.jsonl")
@@ -197,6 +249,36 @@ class SemanticValidateTests(unittest.TestCase):
         errors = self.errors()
         self.assertTrue(any("snapshots.jsonl:1: invalid JSON" in e for e in errors), errors)
         self.assertTrue(any("decisions.jsonl:1: missing id" in e for e in errors), errors)
+
+    def test_review_requires_checked_criteria(self):
+        self.update("shared/work/reviews.jsonl", criteria_checked=[])
+        errors = self.errors()
+        self.assertTrue(any("criteria_checked must contain at least 1 item" in e for e in errors), errors)
+
+    def test_invalid_review_result_is_reported(self):
+        self.update("shared/work/reviews.jsonl", result="looks_fine")
+        errors = self.errors()
+        self.assertTrue(any("invalid review result 'looks_fine'" in e for e in errors), errors)
+
+    def test_decision_with_unknown_goal_is_reported(self):
+        self.update("shared/decisions.jsonl", affected_goals=["CG-missing"])
+        errors = self.errors()
+        self.assertTrue(any("affected_goals references unknown goal 'CG-missing'" in e for e in errors), errors)
+
+    def test_decision_with_unknown_work_item_is_reported(self):
+        self.update("shared/decisions.jsonl", related_work_ids=["work:missing"])
+        errors = self.errors()
+        self.assertTrue(any("related_work_ids references unknown work item 'work:missing'" in e for e in errors), errors)
+
+    def test_decision_with_unknown_origin_thread_is_reported(self):
+        self.update("shared/decisions.jsonl", origin_thread_ids=["thread:missing"])
+        errors = self.errors()
+        self.assertTrue(any("origin_thread_ids references unknown thread 'thread:missing'" in e for e in errors), errors)
+
+    def test_invalid_decision_status_is_reported(self):
+        self.update("shared/decisions.jsonl", status="probably_fine")
+        errors = self.errors()
+        self.assertTrue(any("invalid decision status 'probably_fine'" in e for e in errors), errors)
 
     def test_review_of_unknown_work_item_is_reported(self):
         self.update("shared/work/reviews.jsonl", work_id="work:missing")
