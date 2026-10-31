@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 PROVENANCE = {"declared", "observed", "evidenced", "inferred", "unknown_disputed"}
@@ -58,6 +59,15 @@ def require_strings(path: Path, line: int, item: dict, fields: tuple[str, ...], 
         value = item[field]
         if not isinstance(value, str) or not value.strip():
             errors.append(f"{path}:{line}: missing/invalid {field}")
+
+
+def parse_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not ISO_TIMESTAMP.fullmatch(value):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def require_timestamp(path: Path, line: int, item: dict, field: str, errors: list[str]):
@@ -278,6 +288,8 @@ def validate_work(root: Path):
                 "acceptance_criteria",
                 "verification",
                 "provenance_type",
+                "created_at",
+                "updated_at",
             ),
             errors,
         )
@@ -302,6 +314,12 @@ def validate_work(root: Path):
         provenance = item.get("provenance_type")
         if not isinstance(provenance, str) or provenance not in PROVENANCE:
             errors.append(f"{path}:{line}: invalid provenance_type")
+        require_timestamp(path, line, item, "created_at", errors)
+        require_timestamp(path, line, item, "updated_at", errors)
+        created = parse_timestamp(item.get("created_at"))
+        updated = parse_timestamp(item.get("updated_at"))
+        if created is not None and updated is not None and updated < created:
+            errors.append(f"{path}:{line}: updated_at precedes created_at")
         dependencies = item.get("depends_on")
         if not isinstance(dependencies, list):
             errors.append(f"{path}:{line}: depends_on must be a list")

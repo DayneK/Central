@@ -51,7 +51,8 @@ def build_substrate(root: Path) -> None:
         "id": "work:one", "title": "Work", "description": "d", "status": "active",
         "priority": "high", "owner": "agent", "depends_on": [], "source_refs": [],
         "acceptance_criteria": ["done"], "verification": {"status": "pending", "evidence_refs": []},
-        "provenance_type": "declared",
+        "provenance_type": "declared", "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
     }])
     write_jsonl(root / "shared/work/reviews.jsonl", [{
         "id": "review:one", "timestamp": "2026-01-01T00:00:00Z", "work_id": "work:one",
@@ -153,6 +154,16 @@ class SemanticValidateTests(unittest.TestCase):
         self.update("shared/work/items.jsonl", priority="urgent")
         errors = self.errors()
         self.assertTrue(any("invalid work priority 'urgent'" in e for e in errors), errors)
+
+    def test_work_requires_created_and_updated_timestamps(self):
+        records = read_jsonl(self.root / "shared/work/items.jsonl")
+        del records[0]["created_at"]
+        write_jsonl(self.root / "shared/work/items.jsonl", records)
+        self.assertTrue(any("missing created_at" in e for e in self.errors()))
+
+    def test_updated_at_cannot_precede_created_at(self):
+        self.update("shared/work/items.jsonl", updated_at="2025-12-31T00:00:00Z")
+        self.assertTrue(any("updated_at precedes created_at" in e for e in self.errors()))
 
     def test_work_requires_acceptance_criteria(self):
         self.update("shared/work/items.jsonl", acceptance_criteria=[])

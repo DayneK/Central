@@ -22,6 +22,7 @@ except ModuleNotFoundError:  # direct execution: python3 scripts/coordination_he
 UNRESOLVED_THREAD_STATUS = {"open", "active", "decision_pending"}
 VERIFIED_REVIEW_RESULTS = {"pass", "approved", "verified"}
 VERIFIED_VERIFICATION_STATUS = {"verified"}
+STALE_WORK_STATUS = {"proposed", "ready", "active", "blocked"}
 
 
 def load_jsonl(root: Path, relative: str) -> list[dict[str, Any]]:
@@ -46,7 +47,13 @@ def parse_timestamp(value: Any) -> datetime | None:
         return None
 
 
-def build_report(root: Path, *, now: datetime | None = None, max_age_days: int = 30) -> dict[str, Any]:
+def build_report(
+    root: Path,
+    *,
+    now: datetime | None = None,
+    max_age_days: int = 30,
+    stale_days: int = 14,
+) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
@@ -69,6 +76,7 @@ def build_report(root: Path, *, now: datetime | None = None, max_age_days: int =
 
     awaiting_verification = []
     verified_without_review = []
+    stale_work = []
     for item in work:
         work_id = item.get("id")
         status = item.get("status")
@@ -86,6 +94,22 @@ def build_report(root: Path, *, now: datetime | None = None, max_age_days: int =
         if status == "verified" and isinstance(work_id, str):
             if not (review_results_by_work.get(work_id, set()) & VERIFIED_REVIEW_RESULTS):
                 verified_without_review.append({"id": work_id, "title": item.get("title"), "owner": item.get("owner")})
+        if status in STALE_WORK_STATUS:
+            updated = parse_timestamp(item.get("updated_at"))
+            if updated is not None:
+                idle_days = (now - updated).days
+                if idle_days > stale_days:
+                    stale_work.append(
+                        {
+                            "id": work_id,
+                            "title": item.get("title"),
+                            "status": status,
+                            "owner": item.get("owner"),
+                            "updated_at": item.get("updated_at"),
+                            "idle_days": idle_days,
+                        }
+                    )
+    stale_work.sort(key=lambda item: item["idle_days"], reverse=True)
 
     unresolved = [t for t in threads if t.get("status") in UNRESOLVED_THREAD_STATUS]
     aging = []
@@ -132,12 +156,14 @@ def build_report(root: Path, *, now: datetime | None = None, max_age_days: int =
         actions.append(f"Record review evidence for {len(verified_without_review)} verified work item(s).")
     if aging:
         actions.append(f"Review {len(aging)} unresolved thread(s) older than {max_age_days} days.")
+    if stale_work:
+        actions.append(f"Update or close {len(stale_work)} work item(s) idle for more than {stale_days} days.")
     if decisions_without_work:
         actions.append(f"Link {len(decisions_without_work)} decision(s) to related work items.")
 
     if validation_errors:
         status = "invalid"
-    elif awaiting_verification or verified_without_review or aging or decisions_without_work:
+    elif awaiting_verification or verified_without_review or aging or stale_work or decisions_without_work:
         status = "attention"
     else:
         status = "healthy"
@@ -160,6 +186,8 @@ def build_report(root: Path, *, now: datetime | None = None, max_age_days: int =
             "by_status": dict(sorted(Counter(str(item.get("status")) for item in work).items())),
             "awaiting_verification": awaiting_verification,
             "verified_without_review": verified_without_review,
+            "stale": stale_work,
+            "stale_days": stale_days,
         },
         "threads": {
             "by_status": dict(sorted(Counter(str(item.get("status")) for item in threads).items())),
@@ -205,6 +233,9 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Verified without recorded review: **{len(work['verified_without_review'])}**")
     for item in work["verified_without_review"]:
         lines.append(f"  - `{item['id']}` — {item['title']}")
+    lines.append(f"- Stale work (idle > {work['stale_days']} days): **{len(work['stale'])}**")
+    for item in work["stale"]:
+        lines.append(f"  - `{item['id']}` — {item['title']} ({item['idle_days']} days, {item['status']})")
 
     threads = report["threads"]
     lines += ["", "### Discussion state", ""]
@@ -239,7 +270,8 @@ def render_text(report: dict[str, Any]) -> str:
         f"  threads={totals['threads']} messages={totals['messages']} work={totals['work_items']} "
         f"reviews={totals['reviews']} decisions={totals['decisions']} events={totals['events']}",
         f"  awaiting verification={len(report['work']['awaiting_verification'])} "
-        f"verified without review={len(report['work']['verified_without_review'])}",
+        f"verified without review={len(report['work']['verified_without_review'])} "
+        f"stale={len(report['work']['stale'])}",
         f"  unresolved threads={report['threads']['unresolved']} "
         f"older than {report['threads']['max_age_days']}d={len(report['threads']['aging'])}",
         f"  validation errors={len(report['validation']['errors'])}",
@@ -253,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Central repository root (default: current directory)")
     parser.add_argument("--format", choices=("text", "markdown", "json"), default="text")
     parser.add_argument("--max-age-days", type=int, default=30, help="age at which an unresolved thread is reported")
+    parser.add_argument("--stale-days", type=int, default=14, help="idle age at which open work is reported stale")
     parser.add_argument("--now", help="override the current UTC time (ISO-8601) for reproducible reports")
     parser.add_argument("--strict", action="store_true", help="exit non-zero when semantic validation fails")
     args = parser.parse_args(argv)
@@ -263,7 +296,12 @@ def main(argv: list[str] | None = None) -> int:
         if now is None:
             parser.error("--now must be a UTC ISO-8601 timestamp such as 2026-01-01T00:00:00Z")
 
-    report = build_report(args.root.resolve(), now=now, max_age_days=args.max_age_days)
+    report = build_report(
+        args.root.resolve(),
+        now=now,
+        max_age_days=args.max_age_days,
+        stale_days=args.stale_days,
+    )
     if args.format == "json":
         print(json.dumps(report, indent=2, sort_keys=True))
     elif args.format == "markdown":

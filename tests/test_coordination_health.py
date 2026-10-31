@@ -55,6 +55,22 @@ class CoordinationHealthTests(unittest.TestCase):
         self.assertEqual(report["status"], "attention")
         self.assertEqual([item["id"] for item in report["work"]["verified_without_review"]], ["work:one"])
 
+    def test_stale_active_work_is_reported(self):
+        report = self.report(now=datetime(2026, 2, 1, tzinfo=timezone.utc), stale_days=14)
+        self.assertEqual(report["status"], "attention")
+        self.assertEqual([item["id"] for item in report["work"]["stale"]], ["work:one"])
+        self.assertGreater(report["work"]["stale"][0]["idle_days"], 14)
+        self.assertTrue(any("work item(s) idle" in action for action in report["actions"]))
+
+    def test_recent_work_is_not_stale(self):
+        report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.assertEqual(report["work"]["stale"], [])
+
+    def test_implemented_work_is_not_stale(self):
+        self.update("shared/work/items.jsonl", status="implemented")
+        report = self.report(now=datetime(2026, 3, 1, tzinfo=timezone.utc))
+        self.assertEqual(report["work"]["stale"], [])
+
     def test_aging_unresolved_thread_is_reported(self):
         report = self.report(now=datetime(2026, 3, 1, tzinfo=timezone.utc), max_age_days=30)
         self.assertEqual(report["status"], "attention")
