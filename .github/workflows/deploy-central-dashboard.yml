@@ -27,6 +27,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
@@ -53,6 +58,8 @@ jobs:
           Path("/tmp/dashboard-script-checks.tsv").write_text("\n".join(checks) + "\n", encoding="utf-8")
           print(f"Checking {len(checks)} inline script block(s) across {len(pages)} page(s)")
           PY
+          node --check dashboard/operations.js
+          node --test tests/js/operations.test.mjs
           while IFS=$'\t' read -r origin target; do
             echo "node --check ${origin%%:*}"
             node --check "$target"
