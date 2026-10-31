@@ -34,10 +34,12 @@ The utility does not run automatically on GitHub. Invoke it locally or wire it i
 ```sh
 python3 scripts/coordination_health.py
 python3 scripts/coordination_health.py --format markdown
-python3 scripts/coordination_health.py --format json --strict
+python3 scripts/coordination_health.py --format json --fail-on invalid
 ```
 
-It reports work that is implemented but not verified, verified work without review evidence, work idle for more than `--stale-days` (default 14), unresolved threads older than `--max-age-days` (default 30), decisions without related work, empty threads without reviewed legacy evidence, and any semantic validation errors. `--now` pins the report time for reproducible output. `--strict` exits non-zero when semantic validation fails.
+It reports work that is implemented but not verified, verified work without review evidence, work idle for more than `--stale-days` (default 14), unresolved threads older than `--max-age-days` (default 30), decisions without related work, empty threads without reviewed legacy evidence, per-goal work and verification counts, and any semantic validation errors. The JSON output declares `schema_version` for consumers.
+
+`--now` pins the report time for reproducible output. `--fail-on none|attention|invalid` controls the exit code; `--strict` is an alias for `--fail-on invalid`. The default never fails, so scheduled reporting can surface attention without turning the workflow permanently red.
 
 ## Semantic validation
 

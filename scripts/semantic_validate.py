@@ -367,7 +367,7 @@ def validate_legacy_map(root: Path, thread_ids: set[str]):
     return errors
 
 
-def validate_work(root: Path):
+def validate_work(root: Path, goal_ids: set[str] | None = None):
     errors = []
     ids = set()
     records = []
@@ -429,6 +429,11 @@ def validate_work(root: Path):
             errors.append(f"{path}:{line}: depends_on entries must be strings")
         check_string_list(root, path, line, item, "source_refs", errors, check_paths=True)
         check_string_list(root, path, line, item, "acceptance_criteria", errors, min_items=1)
+        if "goal_ids" in item:
+            if check_string_list(root, path, line, item, "goal_ids", errors) and goal_ids is not None:
+                for goal_id in item["goal_ids"]:
+                    if goal_id not in goal_ids:
+                        errors.append(f"{path}:{line}: goal_ids references unknown goal {goal_id!r}")
         verification = item.get("verification")
         if not isinstance(verification, dict):
             errors.append(f"{path}:{line}: verification must be an object")
@@ -718,7 +723,7 @@ def run(root: Path, *, check_git: bool = False) -> list[str]:
     work_ids: set[str] | None = None
     if present(root, "shared/work/items.jsonl"):
         try:
-            work_errors, work_ids = validate_work(root)
+            work_errors, work_ids = validate_work(root, goal_ids)
             errors.extend(work_errors)
             if present(root, "shared/work/reviews.jsonl"):
                 errors.extend(validate_reviews(root, work_ids))

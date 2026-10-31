@@ -37,6 +37,19 @@ class CoordinationHealthTests(unittest.TestCase):
         self.assertEqual(report["validation"]["errors"], [])
         self.assertEqual(report["totals"]["work_items"], 1)
 
+    def test_report_declares_schema_and_goal_attribution(self):
+        report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.assertEqual(report["schema_version"], 2)
+        self.assertEqual(report["goals"]["rows"][0]["id"], "goal:one")
+        self.assertEqual(report["goals"]["rows"][0]["work_items"], 1)
+        self.assertEqual(report["goals"]["unassigned"]["work_items"], 0)
+
+    def test_work_without_goal_attribution_is_counted_separately(self):
+        self.update("shared/work/items.jsonl", goal_ids=[])
+        report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.assertEqual(report["goals"]["unassigned"]["work_items"], 1)
+        self.assertEqual(report["goals"]["rows"][0]["work_items"], 0)
+
     def test_implemented_with_pending_verification_needs_attention(self):
         self.update("shared/work/items.jsonl", status="implemented")
         report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))
@@ -122,6 +135,21 @@ class CoordinationHealthTests(unittest.TestCase):
         self.assertEqual(report["status"], "invalid")
         self.assertTrue(report["validation"]["errors"])
         self.assertTrue(any("semantic validation error" in action for action in report["actions"]))
+
+    def test_fail_on_attention_exits_non_zero(self):
+        self.update("shared/work/items.jsonl", status="implemented")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = main(["--root", str(self.root), "--format", "json", "--fail-on", "attention"])
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(out.getvalue())["status"], "attention")
+
+    def test_fail_on_invalid_allows_attention(self):
+        self.update("shared/work/items.jsonl", status="implemented")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = main(["--root", str(self.root), "--format", "json", "--fail-on", "invalid"])
+        self.assertEqual(code, 0)
 
     def test_strict_cli_fails_on_validation_errors(self):
         self.update("shared/work/items.jsonl", status="nonsense")

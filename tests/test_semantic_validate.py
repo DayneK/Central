@@ -51,8 +51,14 @@ def build_substrate(root: Path) -> None:
         "type": "update", "content": "hello", "source_refs": [],
         "provenance_type": "declared",
     }])
+    (root / "projects/central").mkdir(parents=True, exist_ok=True)
+    (root / "projects/central/shared-goals.json").write_text(
+        json.dumps({"goals": [{"id": "goal:one", "title": "Goal One", "status": "active"}]}),
+        encoding="utf-8",
+    )
     write_jsonl(root / "shared/work/items.jsonl", [{
         "id": "work:one", "title": "Work", "description": "d", "status": "active",
+        "goal_ids": ["goal:one"],
         "priority": "high", "owner": "agent", "depends_on": [], "source_refs": [],
         "acceptance_criteria": ["done"], "verification": {"status": "pending", "evidence_refs": []},
         "provenance_type": "declared", "created_at": "2026-01-01T00:00:00Z",
@@ -275,6 +281,11 @@ class SemanticValidateTests(unittest.TestCase):
         self.update("shared/work/items.jsonl", acceptance_criteria=[])
         errors = self.errors()
         self.assertTrue(any("acceptance_criteria must contain at least 1 item" in e for e in errors), errors)
+
+    def test_work_goal_reference_must_exist(self):
+        self.update("shared/work/items.jsonl", goal_ids=["goal:missing"])
+        errors = self.errors()
+        self.assertTrue(any("goal_ids references unknown goal 'goal:missing'" in e for e in errors), errors)
 
     def test_verified_work_requires_verification_evidence(self):
         self.update("shared/work/items.jsonl", status="verified", verification={"status": "verified", "evidence_refs": []})

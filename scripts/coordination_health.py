@@ -23,6 +23,7 @@ UNRESOLVED_THREAD_STATUS = {"open", "active", "decision_pending"}
 VERIFIED_REVIEW_RESULTS = {"pass", "approved", "verified"}
 VERIFIED_VERIFICATION_STATUS = {"verified"}
 STALE_WORK_STATUS = {"proposed", "ready", "active", "blocked"}
+SCHEMA_VERSION = 2
 
 
 def load_jsonl(root: Path, relative: str) -> list[dict[str, Any]]:
@@ -36,6 +37,25 @@ def load_jsonl(root: Path, relative: str) -> list[dict[str, Any]]:
     except (OSError, ValueError, TypeError):
         return records  # semantic_validate reports the malformed remainder
     return records
+
+
+def load_goal_metadata(root: Path) -> dict[str, str]:
+    """Map known goal IDs to titles for derived work attribution."""
+    metadata: dict[str, str] = {}
+    paths = sorted((root / "agents").glob("*/goals/goals.json"))
+    paths += sorted((root / "projects").glob("*/shared-goals.json"))
+    for path in paths:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        goals = data.get("goals") if isinstance(data, dict) else None
+        if not isinstance(goals, list):
+            continue
+        for goal in goals:
+            if isinstance(goal, dict) and isinstance(goal.get("id"), str):
+                metadata[goal["id"]] = str(goal.get("title") or goal["id"])
+    return metadata
 
 
 def parse_timestamp(value: Any) -> datetime | None:
@@ -149,6 +169,51 @@ def build_report(
     activity_times = [value for value in activity_times if value is not None]
     latest_activity = max(activity_times).isoformat().replace("+00:00", "Z") if activity_times else None
 
+    goal_metadata = load_goal_metadata(root)
+    awaiting_ids = {item["id"] for item in awaiting_verification if item.get("id")}
+    stale_ids = {item["id"] for item in stale_work if item.get("id")}
+    goal_rows: dict[str, dict[str, Any]] = {
+        goal_id: {
+            "id": goal_id,
+            "title": title,
+            "work_items": 0,
+            "by_status": {},
+            "awaiting_verification": 0,
+            "stale": 0,
+        }
+        for goal_id, title in sorted(goal_metadata.items())
+    }
+    unassigned = {"id": "unassigned", "title": "No goal attribution", "work_items": 0, "work_ids": []}
+    for item in work:
+        work_id = item.get("id")
+        goal_ids = item.get("goal_ids")
+        if not isinstance(goal_ids, list) or not goal_ids:
+            unassigned["work_items"] += 1
+            if isinstance(work_id, str):
+                unassigned["work_ids"].append(work_id)
+            continue
+        for goal_id in goal_ids:
+            if not isinstance(goal_id, str):
+                continue
+            row = goal_rows.setdefault(
+                goal_id,
+                {
+                    "id": goal_id,
+                    "title": goal_id,
+                    "work_items": 0,
+                    "by_status": {},
+                    "awaiting_verification": 0,
+                    "stale": 0,
+                },
+            )
+            row["work_items"] += 1
+            status = str(item.get("status"))
+            row["by_status"][status] = row["by_status"].get(status, 0) + 1
+            if work_id in awaiting_ids:
+                row["awaiting_verification"] += 1
+            if work_id in stale_ids:
+                row["stale"] += 1
+
     validation_errors = validate_semantic(root)
     actions = []
     if validation_errors:
@@ -186,6 +251,7 @@ def build_report(
         status = "healthy"
 
     return {
+        "schema_version": SCHEMA_VERSION,
         "as_of": now.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "status": status,
         "totals": {
@@ -218,6 +284,10 @@ def build_report(
         "decisions": {
             "total": len(decisions),
             "without_related_work": decisions_without_work,
+        },
+        "goals": {
+            "rows": list(goal_rows.values()),
+            "unassigned": unassigned,
         },
         "activity": {
             "latest": latest_activity,
@@ -257,6 +327,20 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"  - `{item['id']}` — {item['title']} ({item['idle_days']} days, {item['status']})")
 
     threads = report["threads"]
+    goals = report["goals"]
+    lines += ["", "### Goal health", ""]
+    if goals["rows"]:
+        lines += ["| Goal | Work | Awaiting verification | Stale |", "| --- | ---: | ---: | ---: |"]
+        for row in goals["rows"]:
+            lines.append(
+                f"| `{row['id']}` {row['title']} | {row['work_items']} | "
+                f"{row['awaiting_verification']} | {row['stale']} |"
+            )
+    else:
+        lines.append("- No goal registries were found.")
+    unassigned = goals["unassigned"]
+    lines.append(f"- Work without goal attribution: **{unassigned['work_items']}**")
+
     lines += ["", "### Discussion state", ""]
     lines.append(
         f"- Unresolved threads: **{threads['unresolved']}**; older than {threads['max_age_days']} days: "
@@ -314,7 +398,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-age-days", type=int, default=30, help="age at which an unresolved thread is reported")
     parser.add_argument("--stale-days", type=int, default=14, help="idle age at which open work is reported stale")
     parser.add_argument("--now", help="override the current UTC time (ISO-8601) for reproducible reports")
-    parser.add_argument("--strict", action="store_true", help="exit non-zero when semantic validation fails")
+    parser.add_argument("--strict", action="store_true", help="alias for --fail-on invalid")
+    parser.add_argument(
+        "--fail-on",
+        choices=("none", "attention", "invalid"),
+        default="none",
+        help="exit non-zero when the report reaches this status (default: never)",
+    )
     args = parser.parse_args(argv)
 
     now = None
@@ -336,7 +426,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(render_text(report))
 
-    if args.strict and report["validation"]["errors"]:
+    fail_on = "invalid" if args.strict else args.fail_on
+    status_rank = {"healthy": 0, "attention": 1, "invalid": 2}
+    threshold = {"none": 99, "attention": 1, "invalid": 2}[fail_on]
+    if status_rank[report["status"]] >= threshold:
         return 1
     return 0
 
