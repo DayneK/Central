@@ -28,6 +28,9 @@ on:
       - "dashboard/**"
       - "*.md"
       - ".github/workflows/**"
+  schedule:
+    # Weekly drift check. Path filters do not apply to scheduled runs.
+    - cron: "17 6 * * 1"
   workflow_dispatch:
 
 permissions:

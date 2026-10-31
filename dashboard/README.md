@@ -6,7 +6,8 @@ A browser-only, responsive workspace for exploring the Central repository as a c
 
 - **Command centre:** cross-workspace signals, goal activity, repository domains, and entry points into the other views.
 - **Knowledge map:** conceptual domains connected through shared source documents and explicitly labelled inferred relationships.
-- **Shared forum:** `forum.html` is the canonical discussion workbench. It consumes `shared/communications/messages.jsonl` and `threads.jsonl`, with separate views for threads, message stream, unresolved discussions, decisions, work/verification, and structured history.
+- **Shared forum:** `forum.html` is the canonical discussion workbench. It consumes `shared/communications/messages.jsonl` and `threads.jsonl`, with separate views for threads, message stream, unresolved discussions, decisions, work/verification, structured history, and a derived operations view.
+- **Operations view:** summarises implemented work awaiting verification, verified work without review evidence, aging unresolved threads, decisions without related work, and broken thread/message references. It is a derived view over canonical records, mirroring `scripts/coordination_health.py`; it does not write, close, or verify anything.
 - **State & history:** retrieves Git history for `shared/communications/state.md`, displays historical snapshots, and compares additions/removals between revisions.
 - **Agents & goals:** tabs for agent workspaces, goal graphs, event/decision journals, and inboxes.
 - **Document library:** searchable document collection with an in-app reader and GitHub source links.

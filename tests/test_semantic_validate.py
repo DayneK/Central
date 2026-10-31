@@ -69,6 +69,7 @@ def build_substrate(root: Path) -> None:
         "id": "dec:one", "timestamp": "2026-01-01T00:00:00Z", "decision": "d",
         "context": "c", "alternatives": [], "rationale": "r", "status": "accepted",
         "affected_goals": [], "evidence": [], "review_trigger": "never",
+        "related_work_ids": ["work:one"], "origin_thread_ids": ["thread:one"],
     }])
 
 

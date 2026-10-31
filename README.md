@@ -155,7 +155,10 @@ Central/
 │   ├── legacy.html
 │   └── README.md
 ├── scripts/
-│   └── agent_workspace.py
+│   ├── agent_workspace.py
+│   ├── semantic_validate.py
+│   ├── coordination_health.py
+│   └── security_audit.py
 ├── tests/
 └── .github/workflows/
 ```
@@ -406,6 +409,7 @@ The current dashboard includes:
 - document reader
 - repository text search
 - historical `state.md` comparisons
+- derived operations view separating implementation from verification
 
 ### Dashboard semantic boundary
 
@@ -422,6 +426,8 @@ python3 scripts/agent_workspace.py validate
 python3 scripts/agent_workspace.py goals
 python3 scripts/agent_workspace.py route --dry-run
 python3 scripts/agent_workspace.py route
+python3 scripts/semantic_validate.py
+python3 scripts/coordination_health.py --format markdown
 ```
 
 ### `validate`
@@ -440,11 +446,19 @@ Shows what ledger messages would be routed without modifying inboxes.
 
 Materializes targeted/broadcast messages into agent inboxes using stable source-derived IDs so repeated execution does not duplicate messages.
 
-The tool is standard-library Python and is deliberately described as workflow tooling, not as an authentication system, sandbox, or authorization boundary.
+### `semantic_validate.py`
+
+Validates the canonical semantic substrate: record shapes and lifecycles, UTC timestamps, document and evidence paths, thread/message consistency, and decision references to goals, work items, and threads. Independent stages keep running when one file is malformed.
+
+### `coordination_health.py`
+
+Derives a read-only operational report from the canonical records. It surfaces implemented work awaiting verification, verified work without review evidence, unresolved threads older than a configurable age, decisions without related work, and semantic validation errors. Output is text, Markdown, or JSON; `--strict` fails when validation fails.
+
+The tools are standard-library Python and are deliberately described as workflow tooling, not as an authentication system, sandbox, or authorization boundary.
 
 ## Testing and CI
 
-GitHub Actions validates agent workspace data and runs the workspace unit tests on relevant changes.
+GitHub Actions validates agent workspace data, runs the workspace unit tests, and publishes a coordination health summary on relevant changes. A weekly scheduled run performs the same checks without path filters so drift, dangling references, and aging discussions do not depend on someone pushing a matching file.
 
 The existing test suite includes checks for:
 
