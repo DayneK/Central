@@ -458,7 +458,7 @@ The tools are standard-library Python and are deliberately described as workflow
 
 ## Testing and CI
 
-GitHub Actions validates agent workspace data, runs the workspace unit tests, and publishes a coordination health summary on relevant changes. A weekly scheduled run performs the same checks without path filters so drift, dangling references, and aging discussions do not depend on someone pushing a matching file.
+GitHub Actions validates agent workspace data, runs Python and dashboard operations tests, and publishes a coordination health summary on relevant changes. The JSON report is uploaded as a 90-day artifact, and a gate fails the run when semantic validation is invalid; the threshold can be raised to `attention` through manual dispatch. A weekly scheduled run performs the same checks without path filters so drift, dangling references, and aging discussions do not depend on someone pushing a matching file.
 
 The existing test suite includes checks for:
 

@@ -32,13 +32,29 @@ on:
     # Weekly drift check. Path filters do not apply to scheduled runs.
     - cron: "17 6 * * 1"
   workflow_dispatch:
+    inputs:
+      fail_on:
+        description: "Health gate threshold"
+        type: choice
+        options:
+          - invalid
+          - attention
+          - none
+        default: invalid
 
 permissions:
   contents: read
 
+concurrency:
+  group: "central-workspace-checks"
+  cancel-in-progress: true
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HEALTH_FAIL_ON: ${{ github.event.inputs.fail_on || 'invalid' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -68,6 +84,16 @@ jobs:
         run: python -m unittest discover -s tests -p "test*.py" -v
       - name: Run dashboard operations tests
         run: node --test tests/js/operations.test.mjs
+      - name: Write coordination health artifact
+        run: python scripts/coordination_health.py --format json > coordination-health.json
+      - name: Upload coordination health artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coordination-health
+          path: coordination-health.json
+          retention-days: 90
+      - name: Enforce coordination health gate
+        run: python scripts/coordination_health.py --format text --fail-on "$HEALTH_FAIL_ON"
       - name: Publish coordination health summary
         if: always()
         run: python scripts/coordination_health.py --format markdown >> "$GITHUB_STEP_SUMMARY"

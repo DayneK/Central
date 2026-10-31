@@ -47,4 +47,4 @@ It reports work that is implemented but not verified, verified work without revi
 
 Pass `--check-git` to resolve every snapshot `source_commit` against Git history. This requires a full clone (`fetch-depth: 0` in CI); without the flag, only SHA shape is checked.
 
-The CI workflow publishes the Markdown report as its job summary. The report is a derived view: canonical records remain the source of truth, and absence of an alert is not proof that a goal is complete.
+CI writes the JSON report to `coordination-health.json`, uploads it as an artifact, publishes the Markdown report as its job summary, and gates on `--fail-on invalid` by default. A manual dispatch can raise the gate to `attention`. The report is a derived view: canonical records remain the source of truth, and absence of an alert is not proof that a goal is complete.
