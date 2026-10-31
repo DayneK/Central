@@ -55,3 +55,6 @@ jobs:
         run: python scripts/agent_workspace.py route --dry-run
       - name: Run workspace unit tests
         run: python -m unittest discover -s tests -p "test*.py" -v
+      - name: Publish coordination health summary
+        if: always()
+        run: python scripts/coordination_health.py --format markdown >> "$GITHUB_STEP_SUMMARY"

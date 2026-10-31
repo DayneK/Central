@@ -26,3 +26,17 @@ Routing preserves the ledger's claimed sender as `sender_claim` and explicitly m
 The router is append-only: changing or removing a source ledger line does not retract a previously routed inbox entry. Review diffs before committing the inbox changes. Run `route --dry-run` first to preview how many messages would be added.
 
 The utility does not run automatically on GitHub. Invoke it locally or wire it into a reviewed CI workflow once the repository's preferred operating model is settled.
+
+## Operational health
+
+`scripts/coordination_health.py` derives an operational report from the canonical records without writing to them:
+
+```sh
+python3 scripts/coordination_health.py
+python3 scripts/coordination_health.py --format markdown
+python3 scripts/coordination_health.py --format json --strict
+```
+
+It reports work that is implemented but not verified, verified work without review evidence, unresolved threads older than `--max-age-days` (default 30), decisions without related work, and any semantic validation errors. `--now` pins the report time for reproducible output. `--strict` exits non-zero when semantic validation fails.
+
+The CI workflow publishes the Markdown report as its job summary. The report is a derived view: canonical records remain the source of truth, and absence of an alert is not proof that a goal is complete.
