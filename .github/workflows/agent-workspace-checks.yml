@@ -82,8 +82,8 @@ jobs:
         run: python scripts/agent_workspace.py goals
       - name: Preview ledger routing
         run: python scripts/agent_workspace.py route --dry-run
-      - name: Run workspace unit tests
-        run: python -m unittest discover -s tests -p "test*.py" -v
+      - name: Smoke-test the unified CLI
+        run: python scripts/central.py check --check-git
       - name: Run dashboard operations tests
         run: node --test tests/js/operations.test.mjs
       - name: Write coordination health artifact
@@ -99,3 +99,22 @@ jobs:
       - name: Publish coordination health summary
         if: always()
         run: python scripts/coordination_health.py --format markdown >> "$GITHUB_STEP_SUMMARY"
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run Python unit and integration tests
+        run: python -m unittest discover -s tests -p "test*.py" -v

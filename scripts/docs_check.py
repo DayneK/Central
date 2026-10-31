@@ -13,6 +13,7 @@ from urllib.parse import unquote
 
 REQUIRED_DOCS = (
     "README.md",
+    "CHANGELOG.md",
     "SECURITY.md",
     "docs/OPERATIONS.md",
     "docs/ONBOARDING.md",

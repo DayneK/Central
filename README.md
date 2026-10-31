@@ -119,6 +119,7 @@ The architecture is intentionally file-first. JSON/JSONL provide machine-readabl
 ```text
 Central/
 ├── README.md
+├── CHANGELOG.md
 ├── SECURITY.md
 ├── docs/
 │   ├── OPERATIONS.md

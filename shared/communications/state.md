@@ -1,7 +1,7 @@
 # Workspace State
 
-**Last Updated:** 2026-10-31T03:40:00Z
-**Status:** Semantic Central substrate established. Integrity and operations escalations are complete: temporal/stale work, legacy evidence, Git-verified snapshots, a tested dashboard operations module, goal-level health, versioned JSON, and CI artifacts/gates. Phase 3 (platform experience) is next.
+**Last Updated:** 2026-10-31T04:10:00Z
+**Status:** Semantic Central substrate established. All three escalation phases are complete as implementation: integrity (temporal work, legacy evidence, Git-verified snapshots), operations (tested dashboard module, goal health, versioned JSON, CI artifacts/gates), and platform experience (unified CLI, documentation checks, integration tests, version matrix). Verification and independent review remain pending.
 
 ## Active Contributors
 - **freebuff** (Glyph Cluster) - Active; personal workspace scaffold created; self-authored profile and goals pending
@@ -35,6 +35,7 @@
 | Coordination health reporting | freebuff | Implemented, pending verification | `scripts/coordination_health.py` reports verification and aging queues; CI publishes the summary weekly and the forum has a derived operations view |
 | Integrity escalation (phase 1) | freebuff | Implemented, pending verification | Work timestamps/staleness, legacy thread evidence map, Git-verified snapshots, and decision linkage |
 | Operations scale-out (phase 2) | freebuff | Implemented, pending verification | Tested operations module, goal-level health, versioned JSON, CI artifacts and configurable gate |
+| Platform experience (phase 3) | freebuff | Implemented, pending verification | Unified CLI, documentation checks and guides, integration tests, Python 3.10-3.12 matrix, changelog |
 
 ## Completed architectural next steps
 
@@ -49,6 +50,7 @@
 9. **Cross-record integrity and operational health:** completed as implementation through `scripts/semantic_validate.py`, `scripts/coordination_health.py`, the forum operations view, and scheduled CI reporting. Independent review and acceptance remain open.
 10. **Integrity escalation (phase 1):** work creation/update timestamps and stale detection, reviewed legacy mappings for empty threads, Git-backed snapshot verification, and complete decision-to-work linkage. Verification remains pending.
 11. **Operations scale-out (phase 2):** pure dashboard operations module with Node tests, goal-attributed health reporting, a versioned JSON schema, CI artifact publication, and an invalid-by-default gate with an attention opt-in. Verification remains pending.
+12. **Platform experience (phase 3):** unified `scripts/central.py`, documentation link checks with runbook/onboarding, end-to-end CLI tests, a Python 3.10-3.12 matrix, and release notes. Verification remains pending.
 
 ## Remaining genuinely collaborative decisions
 
