@@ -213,11 +213,17 @@ def validate_messages(root: Path):
     return errors, message_ids, thread_ids, messages
 
 
-def validate_threads(root: Path, message_ids: set[str], messages: list[dict] | None = None):
+def validate_threads(
+    root: Path,
+    message_ids: set[str],
+    messages: list[dict] | None = None,
+    mapped_threads: set[str] | None = None,
+):
     errors = []
     ids = set()
     path = root / "shared/communications/threads.jsonl"
     messages = messages or []
+    mapped_threads = mapped_threads or set()
     for line, item in jsonl(path):
         require_fields(
             path,
@@ -239,9 +245,20 @@ def validate_threads(root: Path, message_ids: set[str], messages: list[dict] | N
             errors.append(f"{path}:{line}: invalid provenance_type")
         if "tags" in item:
             check_string_list(root, path, line, item, "tags", errors)
+        seed_only = item.get("seed_only")
+        if seed_only is not None and not isinstance(seed_only, bool):
+            errors.append(f"{path}:{line}: seed_only must be a boolean")
         if not check_string_list(root, path, line, item, "message_ids", errors):
             continue
         listed = item["message_ids"]
+        if not listed and seed_only is True:
+            check_string_list(root, path, line, item, "evidence_refs", errors, min_items=1, check_paths=True)
+        elif not listed and isinstance(tid, str) and tid not in mapped_threads:
+            errors.append(
+                f"{path}:{line}: empty thread has no legacy mapping or explicit seed evidence"
+            )
+        elif listed and seed_only is True:
+            errors.append(f"{path}:{line}: seed_only cannot be true when message_ids is not empty")
         if len(set(listed)) != len(listed):
             errors.append(f"{path}:{line}: message_ids contains duplicates")
         for mid in listed:
@@ -263,6 +280,89 @@ def validate_threads(root: Path, message_ids: set[str], messages: list[dict] | N
             for mid in missing:
                 errors.append(f"{path}:{line}: thread message_ids omits message {mid!r}")
     return errors, ids
+
+
+def read_legacy_mappings(root: Path) -> list[dict]:
+    """Load structurally usable mappings so empty threads can reference them.
+
+    Full validation happens in validate_legacy_map(); malformed entries are
+    ignored here only to avoid attributing evidence that cannot be trusted.
+    """
+    path = root / "shared/communications/migrations/legacy-thread-map.jsonl"
+    if not path.is_file():
+        return []
+    try:
+        return [item for _, item in jsonl(path) if isinstance(item.get("thread_id"), str)]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def validate_legacy_map(root: Path, thread_ids: set[str]):
+    errors = []
+    ids = set()
+    pairs = set()
+    path = root / "shared/communications/migrations/legacy-thread-map.jsonl"
+    log_path = root / "shared/communications/log.jsonl"
+    try:
+        legacy = [item for _, item in jsonl(log_path)]
+    except (OSError, ValueError, TypeError) as exc:
+        return [f"{log_path}: {exc}"]
+    for line, item in jsonl(path):
+        require_fields(
+            path,
+            line,
+            item,
+            (
+                "id",
+                "thread_id",
+                "legacy_index",
+                "legacy_timestamp",
+                "legacy_sender",
+                "mapping_basis",
+                "reviewed_by",
+                "reviewed_at",
+            ),
+            errors,
+        )
+        require_strings(
+            path,
+            line,
+            item,
+            ("id", "thread_id", "legacy_timestamp", "legacy_sender", "mapping_basis", "reviewed_by", "reviewed_at"),
+            errors,
+        )
+        require_timestamp(path, line, item, "reviewed_at", errors)
+        key = item.get("id")
+        if isinstance(key, str) and key in ids:
+            errors.append(f"{path}:{line}: duplicate mapping id {key!r}")
+        if isinstance(key, str):
+            ids.add(key)
+        thread_id = item.get("thread_id")
+        if isinstance(thread_id, str) and thread_ids is not None and thread_id not in thread_ids:
+            errors.append(f"{path}:{line}: thread_id references unknown thread {thread_id!r}")
+        index = item.get("legacy_index")
+        if isinstance(index, bool) or not isinstance(index, int) or index < 0:
+            errors.append(f"{path}:{line}: legacy_index must be a non-negative integer")
+            continue
+        pair = (thread_id, index)
+        if pair in pairs:
+            errors.append(f"{path}:{line}: duplicate mapping for {thread_id!r} at index {index}")
+        pairs.add(pair)
+        if index >= len(legacy):
+            errors.append(f"{path}:{line}: legacy_index {index} is out of range")
+            continue
+        record = legacy[index]
+        if item.get("legacy_timestamp") != record.get("timestamp"):
+            errors.append(
+                f"{path}:{line}: legacy_timestamp does not match log entry {index} "
+                f"({record.get('timestamp')!r})"
+            )
+        if item.get("legacy_sender") != record.get("sender"):
+            errors.append(
+                f"{path}:{line}: legacy_sender does not match log entry {index} "
+                f"({record.get('sender')!r})"
+            )
+    return errors
 
 
 def validate_work(root: Path):
@@ -511,8 +611,10 @@ def collect_goal_ids(root: Path) -> set[str]:
 def validate_paths(root: Path):
     errors = []
     required = [
+        "shared/communications/log.jsonl",
         "shared/communications/messages.jsonl",
         "shared/communications/threads.jsonl",
+        "shared/communications/migrations/legacy-thread-map.jsonl",
         "shared/knowledge/documents.jsonl",
         "shared/knowledge/relations.jsonl",
         "shared/state/events.jsonl",
@@ -560,12 +662,15 @@ def run(root: Path) -> list[str]:
     # Messages, the threads that contain them, and the cross-reference between.
     message_ids: set[str] = set()
     thread_ids: set[str] | None = None
+    mapped_thread_ids = {
+        item["thread_id"] for item in read_legacy_mappings(root) if isinstance(item.get("thread_id"), str)
+    }
     if present(root, "shared/communications/messages.jsonl"):
         try:
             message_errors, message_ids, _, messages = validate_messages(root)
             errors.extend(message_errors)
             if present(root, "shared/communications/threads.jsonl"):
-                thread_errors, thread_ids = validate_threads(root, message_ids, messages)
+                thread_errors, thread_ids = validate_threads(root, message_ids, messages, mapped_thread_ids)
                 errors.extend(thread_errors)
                 # Validate that every modern message points at a registered thread.
                 for line, item in jsonl(root / "shared/communications/messages.jsonl"):
@@ -575,6 +680,15 @@ def run(root: Path) -> list[str]:
                             f"unknown thread_id {item.get('thread_id')!r}"
                         )
         except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+
+    # Legacy thread evidence is independent of modern messages and threads.
+    if present(root, "shared/communications/migrations/legacy-thread-map.jsonl") and present(
+        root, "shared/communications/log.jsonl"
+    ):
+        try:
+            errors.extend(validate_legacy_map(root, thread_ids or set()))
+        except (OSError, ValueError, TypeError) as exc:
             errors.append(str(exc))
 
     # Work items, then the reviews that must reference them.

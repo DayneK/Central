@@ -67,6 +67,7 @@ def build_report(
     snapshots = load_jsonl(root, "shared/state/snapshots.jsonl")
     documents = load_jsonl(root, "shared/knowledge/documents.jsonl")
     relations = load_jsonl(root, "shared/knowledge/relations.jsonl")
+    legacy_mappings = load_jsonl(root, "shared/communications/migrations/legacy-thread-map.jsonl")
 
     review_results_by_work: dict[str, set[str]] = {}
     for review in reviews:
@@ -132,6 +133,11 @@ def build_report(
     empty_threads = [
         t.get("thread_id") for t in threads if isinstance(t.get("message_ids"), list) and not t["message_ids"]
     ]
+    mapped_thread_ids = {
+        m.get("thread_id") for m in legacy_mappings if isinstance(m.get("thread_id"), str)
+    }
+    empty_without_evidence = [tid for tid in empty_threads if tid not in mapped_thread_ids]
+    legacy_mapped = sorted(tid for tid in empty_threads if tid in mapped_thread_ids)
     decisions_without_work = [
         d.get("id") for d in decisions if not isinstance(d.get("related_work_ids"), list) or not d["related_work_ids"]
     ]
@@ -160,10 +166,21 @@ def build_report(
         actions.append(f"Update or close {len(stale_work)} work item(s) idle for more than {stale_days} days.")
     if decisions_without_work:
         actions.append(f"Link {len(decisions_without_work)} decision(s) to related work items.")
+    if empty_without_evidence:
+        actions.append(
+            f"Map legacy evidence or document a seed rationale for {len(empty_without_evidence)} empty thread(s)."
+        )
 
     if validation_errors:
         status = "invalid"
-    elif awaiting_verification or verified_without_review or aging or stale_work or decisions_without_work:
+    elif (
+        awaiting_verification
+        or verified_without_review
+        or aging
+        or stale_work
+        or decisions_without_work
+        or empty_without_evidence
+    ):
         status = "attention"
     else:
         status = "healthy"
@@ -194,6 +211,8 @@ def build_report(
             "unresolved": len(unresolved),
             "aging": aging,
             "without_messages": empty_threads,
+            "legacy_mapped": legacy_mapped,
+            "empty_without_evidence": empty_without_evidence,
             "max_age_days": max_age_days,
         },
         "decisions": {
@@ -245,7 +264,13 @@ def render_markdown(report: dict[str, Any]) -> str:
     )
     for item in threads["aging"]:
         lines.append(f"  - `{item['thread_id']}` — {item['title']} ({item['age_days']} days)")
-    lines.append(f"- Threads without messages: **{len(threads['without_messages'])}**")
+    lines.append(
+        f"- Threads without messages: **{len(threads['without_messages'])}** "
+        f"(legacy-mapped: {len(threads['legacy_mapped'])}; without evidence: "
+        f"{len(threads['empty_without_evidence'])})"
+    )
+    for thread_id in threads["empty_without_evidence"]:
+        lines.append(f"  - `{thread_id}` has no messages and no reviewed legacy evidence")
 
     lines += ["", "### Validation", ""]
     if report["validation"]["errors"]:
@@ -273,7 +298,9 @@ def render_text(report: dict[str, Any]) -> str:
         f"verified without review={len(report['work']['verified_without_review'])} "
         f"stale={len(report['work']['stale'])}",
         f"  unresolved threads={report['threads']['unresolved']} "
-        f"older than {report['threads']['max_age_days']}d={len(report['threads']['aging'])}",
+        f"older than {report['threads']['max_age_days']}d={len(report['threads']['aging'])} "
+        f"legacy-mapped={len(report['threads']['legacy_mapped'])} "
+        f"without-evidence={len(report['threads']['empty_without_evidence'])}",
         f"  validation errors={len(report['validation']['errors'])}",
     ]
     lines.extend(f"  - {action}" for action in report["actions"])

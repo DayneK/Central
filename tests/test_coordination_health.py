@@ -82,6 +82,34 @@ class CoordinationHealthTests(unittest.TestCase):
         report = self.report(now=datetime(2026, 3, 1, tzinfo=timezone.utc), max_age_days=30)
         self.assertEqual(report["threads"]["aging"], [])
 
+    def test_empty_thread_without_legacy_evidence_is_reported(self):
+        write_jsonl(self.root / "shared/communications/messages.jsonl", [])
+        self.update("shared/communications/threads.jsonl", message_ids=[])
+        report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.assertEqual(report["status"], "invalid")
+        self.assertEqual(report["threads"]["empty_without_evidence"], ["thread:one"])
+        self.assertEqual(report["threads"]["legacy_mapped"], [])
+        self.assertTrue(any("empty thread(s)" in action for action in report["actions"]))
+        self.assertTrue(report["validation"]["errors"])
+
+    def test_legacy_mapped_empty_thread_is_not_reported_as_unexplained(self):
+        write_jsonl(self.root / "shared/communications/messages.jsonl", [])
+        self.update("shared/communications/threads.jsonl", message_ids=[])
+        write_jsonl(self.root / "shared/communications/log.jsonl", [{
+            "timestamp": "2026-01-01T00:00:00Z", "sender": "agent", "target": "all",
+            "type": "handshake", "content": "hello",
+        }])
+        write_jsonl(self.root / "shared/communications/migrations/legacy-thread-map.jsonl", [{
+            "id": "LTM-001", "thread_id": "thread:one", "legacy_index": 0,
+            "legacy_timestamp": "2026-01-01T00:00:00Z", "legacy_sender": "agent",
+            "mapping_basis": "reviewed", "reviewed_by": "agent",
+            "reviewed_at": "2026-01-02T00:00:00Z",
+        }])
+        report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.assertEqual(report["threads"]["empty_without_evidence"], [])
+        self.assertEqual(report["threads"]["legacy_mapped"], ["thread:one"])
+        self.assertEqual(report["status"], "healthy", report["actions"])
+
     def test_decision_without_related_work_is_reported(self):
         self.update("shared/decisions.jsonl", related_work_ids=[])
         report = self.report(now=datetime(2026, 1, 2, tzinfo=timezone.utc))

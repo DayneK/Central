@@ -28,6 +28,8 @@ def build_substrate(root: Path) -> None:
     (root / "README.md").write_text("# Fixture\n", encoding="utf-8")
     (root / "shared/communications").mkdir(parents=True, exist_ok=True)
     (root / "shared/communications/state.md").write_text("# State\n", encoding="utf-8")
+    write_jsonl(root / "shared/communications/log.jsonl", [])
+    write_jsonl(root / "shared/communications/migrations/legacy-thread-map.jsonl", [])
     write_jsonl(root / "shared/knowledge/documents.jsonl", [{
         "id": "doc:one", "type": "document", "title": "One",
         "provenance_type": "declared", "status": "active", "path": "README.md",
@@ -131,6 +133,73 @@ class SemanticValidateTests(unittest.TestCase):
         self.update("shared/state/events.jsonl", source_refs=["missing/event-source.md"])
         errors = self.errors()
         self.assertTrue(any("source_refs references missing path 'missing/event-source.md'" in e for e in errors), errors)
+
+    def empty_thread(self) -> None:
+        write_jsonl(self.root / "shared/communications/messages.jsonl", [])
+        self.update("shared/communications/threads.jsonl", message_ids=[])
+
+    def write_mapping(self, **overrides) -> None:
+        record = {
+            "id": "LTM-001",
+            "thread_id": "thread:one",
+            "legacy_index": 0,
+            "legacy_timestamp": "2026-01-01T00:00:00Z",
+            "legacy_sender": "agent",
+            "mapping_basis": "Reviewed orientation handshake",
+            "reviewed_by": "agent",
+            "reviewed_at": "2026-01-02T00:00:00Z",
+        }
+        record.update(overrides)
+        write_jsonl(self.root / "shared/communications/migrations/legacy-thread-map.jsonl", [record])
+
+    def test_empty_thread_requires_legacy_evidence_or_seed_rationale(self):
+        self.empty_thread()
+        errors = self.errors()
+        self.assertTrue(any("empty thread has no legacy mapping" in e for e in errors), errors)
+
+    def test_empty_thread_with_reviewed_legacy_mapping_is_valid(self):
+        self.empty_thread()
+        write_jsonl(self.root / "shared/communications/log.jsonl", [{
+            "timestamp": "2026-01-01T00:00:00Z", "sender": "agent", "target": "all",
+            "type": "handshake", "content": "hello",
+        }])
+        self.write_mapping()
+        self.assertEqual(self.errors(), [])
+
+    def test_empty_thread_with_seed_evidence_is_valid(self):
+        self.empty_thread()
+        self.update(
+            "shared/communications/threads.jsonl",
+            seed_only=True,
+            evidence_refs=["README.md"],
+        )
+        self.assertEqual(self.errors(), [])
+
+    def test_seed_only_thread_requires_evidence(self):
+        self.empty_thread()
+        self.update("shared/communications/threads.jsonl", seed_only=True, evidence_refs=[])
+        errors = self.errors()
+        self.assertTrue(any("evidence_refs must contain at least 1" in e for e in errors), errors)
+
+    def test_legacy_mapping_timestamp_must_match_log_entry(self):
+        self.empty_thread()
+        write_jsonl(self.root / "shared/communications/log.jsonl", [{
+            "timestamp": "2026-01-01T00:00:00Z", "sender": "agent", "target": "all",
+            "type": "handshake", "content": "hello",
+        }])
+        self.write_mapping(legacy_timestamp="2026-01-01T00:00:01Z")
+        errors = self.errors()
+        self.assertTrue(any("legacy_timestamp does not match" in e for e in errors), errors)
+
+    def test_legacy_mapping_thread_must_exist(self):
+        self.empty_thread()
+        write_jsonl(self.root / "shared/communications/log.jsonl", [{
+            "timestamp": "2026-01-01T00:00:00Z", "sender": "agent", "target": "all",
+            "type": "handshake", "content": "hello",
+        }])
+        self.write_mapping(thread_id="thread:missing")
+        errors = self.errors()
+        self.assertTrue(any("thread_id references unknown thread" in e for e in errors), errors)
 
     def test_thread_must_list_message_from_its_thread(self):
         self.update("shared/communications/threads.jsonl", message_ids=[])
