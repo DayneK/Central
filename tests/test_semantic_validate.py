@@ -6,12 +6,14 @@ and prove that each rule actually fires when its data is wrong, and that one
 broken file does not silently disable validation of the others.
 """
 import json
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from scripts.semantic_validate import run, validate_threads as real_validate_threads
+from scripts.semantic_validate import main, run, validate_threads as real_validate_threads
 
 
 def write_jsonl(path: Path, records) -> None:
@@ -123,6 +125,41 @@ class SemanticValidateTests(unittest.TestCase):
         self.update("shared/knowledge/documents.jsonl", path="missing/document.md")
         errors = self.errors()
         self.assertTrue(any("path references missing file 'missing/document.md'" in e for e in errors), errors)
+
+    def init_git_repo(self) -> str:
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        subprocess.run(["git", "add", "README.md"], cwd=self.root, check=True)
+        subprocess.run(
+            ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "fixture"],
+            cwd=self.root,
+            check=True,
+        )
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=self.root, check=True, text=True, capture_output=True
+        ).stdout.strip()
+
+    @unittest.skipUnless(shutil.which("git"), "git is required")
+    def test_snapshot_commit_can_be_verified_against_git(self):
+        self.update("shared/state/snapshots.jsonl", source_commit=self.init_git_repo())
+        self.assertEqual(run(self.root, check_git=True), [])
+
+    @unittest.skipUnless(shutil.which("git"), "git is required")
+    def test_missing_snapshot_commit_is_reported(self):
+        self.init_git_repo()
+        self.update("shared/state/snapshots.jsonl", source_commit="deadbee")
+        errors = run(self.root, check_git=True)
+        self.assertTrue(any("does not exist in Git history" in e for e in errors), errors)
+
+    def test_snapshot_commit_is_not_resolved_without_the_flag(self):
+        self.update("shared/state/snapshots.jsonl", source_commit="deadbee")
+        self.assertEqual(run(self.root), [])
+
+    @unittest.skipUnless(shutil.which("git"), "git is required")
+    def test_cli_check_git_reports_missing_commit(self):
+        self.init_git_repo()
+        self.update("shared/state/snapshots.jsonl", source_commit="deadbee")
+        with mock.patch("sys.stdout"):
+            self.assertEqual(main(["--root", str(self.root), "--check-git"]), 1)
 
     def test_invalid_timestamp_is_reported(self):
         self.update("shared/communications/messages.jsonl", timestamp="yesterday")

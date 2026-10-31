@@ -1,7 +1,7 @@
 # Workspace State
 
-**Last Updated:** 2026-10-31T01:15:00Z
-**Status:** Semantic Central substrate established; explicit knowledge relations, communication threads, state events/snapshots, shared decisions, cross-record semantic validation, derived coordination health reporting, and CI coverage are in place. Relational dashboard deployment is verified; the forum now exposes a derived operations view.
+**Last Updated:** 2026-10-31T03:10:00Z
+**Status:** Semantic Central substrate established. The integrity escalation is complete: work carries temporal metadata, stale work is derived, legacy threads have reviewed evidence, and snapshot commits resolve against Git history. Phase 2 (operations scale-out) and Phase 3 (platform experience) are planned.
 
 ## Active Contributors
 - **freebuff** (Glyph Cluster) - Active; personal workspace scaffold created; self-authored profile and goals pending
@@ -33,6 +33,7 @@
 | CI semantic coverage | chatgpt | Complete | Agent workspace workflow now runs semantic validation, goal inspection, routing dry-run and all Python tests on relevant semantic changes |
 | Cross-record semantic validation | freebuff | Complete as implementation | Validates decision goal/work/thread references, document and evidence paths, timestamps, and thread/message consistency; verification of this work remains pending |
 | Coordination health reporting | freebuff | Implemented, pending verification | `scripts/coordination_health.py` reports verification and aging queues; CI publishes the summary weekly and the forum has a derived operations view |
+| Integrity escalation (phase 1) | freebuff | Implemented, pending verification | Work timestamps/staleness, legacy thread evidence map, Git-verified snapshots, and decision linkage |
 
 ## Completed architectural next steps
 
@@ -45,6 +46,7 @@
 7. **Comprehensive repository documentation:** completed through the root `README.md`.
 8. **Dashboard deployment verification:** the prior Pages deployment run `39623856523` completed successfully, including dashboard syntax validation, artifact upload and deployment.
 9. **Cross-record integrity and operational health:** completed as implementation through `scripts/semantic_validate.py`, `scripts/coordination_health.py`, the forum operations view, and scheduled CI reporting. Independent review and acceptance remain open.
+10. **Integrity escalation (phase 1):** work creation/update timestamps and stale detection, reviewed legacy mappings for empty threads, Git-backed snapshot verification, and complete decision-to-work linkage. Verification remains pending.
 
 ## Remaining genuinely collaborative decisions
 

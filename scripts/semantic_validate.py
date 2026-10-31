@@ -6,8 +6,10 @@ authors or make inferred relationships authoritative.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import re
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -501,7 +503,18 @@ def validate_events(root: Path):
     return errors
 
 
-def validate_snapshots(root: Path):
+def git_commit_exists(root: Path, commit: str) -> bool:
+    """Ask Git whether a snapshot commit resolves to a commit object."""
+    result = subprocess.run(
+        ["git", "-C", str(root), "cat-file", "-e", f"{commit}^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def validate_snapshots(root: Path, check_git: bool = False):
     errors = []
     path = root / "shared/state/snapshots.jsonl"
     ids = set()
@@ -519,6 +532,16 @@ def validate_snapshots(root: Path):
             commit = item.get("source_commit")
             if isinstance(commit, str) and commit and not re.fullmatch(r"[0-9a-f]{7,40}", commit):
                 errors.append(f"{path}:{line}: source_commit is not a Git SHA-like value")
+            elif check_git and isinstance(commit, str) and commit:
+                try:
+                    exists = git_commit_exists(root, commit)
+                except OSError as exc:
+                    errors.append(f"{path}:{line}: cannot verify source_commit {commit!r}: {exc}")
+                else:
+                    if not exists:
+                        errors.append(
+                            f"{path}:{line}: source_commit {commit!r} does not exist in Git history"
+                        )
             state_file = item.get("state_file")
             if isinstance(state_file, str) and state_file.strip():
                 if "://" not in state_file and not (root / state_file).exists():
@@ -638,7 +661,7 @@ def present(root: Path, relative: str) -> bool:
     return (root / relative).is_file()
 
 
-def run(root: Path) -> list[str]:
+def run(root: Path, *, check_git: bool = False) -> list[str]:
     """Run every validation stage, isolating failures between stages.
 
     Stages are split only along data dependencies. A missing or malformed file
@@ -706,7 +729,7 @@ def run(root: Path) -> list[str]:
     if present(root, "shared/state/events.jsonl"):
         errors.extend(validate_events(root))
     if present(root, "shared/state/snapshots.jsonl"):
-        errors.extend(validate_snapshots(root))
+        errors.extend(validate_snapshots(root, check_git=check_git))
     if present(root, "shared/decisions.jsonl"):
         try:
             errors.extend(validate_decisions(root, goal_ids, work_ids, thread_ids))
@@ -716,9 +739,16 @@ def run(root: Path) -> list[str]:
     return errors
 
 
-def main() -> int:
-    root = Path(__file__).resolve().parents[1]
-    errors = run(root)
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument(
+        "--check-git",
+        action="store_true",
+        help="verify snapshot source_commit values resolve in Git history (requires full history)",
+    )
+    args = parser.parse_args(argv)
+    errors = run(args.root.resolve(), check_git=args.check_git)
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

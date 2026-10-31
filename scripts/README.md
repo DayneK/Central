@@ -37,6 +37,12 @@ python3 scripts/coordination_health.py --format markdown
 python3 scripts/coordination_health.py --format json --strict
 ```
 
-It reports work that is implemented but not verified, verified work without review evidence, unresolved threads older than `--max-age-days` (default 30), decisions without related work, and any semantic validation errors. `--now` pins the report time for reproducible output. `--strict` exits non-zero when semantic validation fails.
+It reports work that is implemented but not verified, verified work without review evidence, work idle for more than `--stale-days` (default 14), unresolved threads older than `--max-age-days` (default 30), decisions without related work, empty threads without reviewed legacy evidence, and any semantic validation errors. `--now` pins the report time for reproducible output. `--strict` exits non-zero when semantic validation fails.
+
+## Semantic validation
+
+`scripts/semantic_validate.py` validates the canonical substrate, including work `created_at`/`updated_at` ordering, cross-record decision references, document and evidence paths, and thread/message membership. Empty threads must have reviewed legacy mappings in `shared/communications/migrations/legacy-thread-map.jsonl` or an explicit `seed_only` rationale with existing evidence.
+
+Pass `--check-git` to resolve every snapshot `source_commit` against Git history. This requires a full clone (`fetch-depth: 0` in CI); without the flag, only SHA shape is checked.
 
 The CI workflow publishes the Markdown report as its job summary. The report is a derived view: canonical records remain the source of truth, and absence of an alert is not proof that a goal is complete.

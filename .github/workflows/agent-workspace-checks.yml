@@ -42,6 +42,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          # Snapshot provenance is checked against Git history, so shallow
+          # clones would report every older snapshot as missing.
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -49,7 +53,7 @@ jobs:
       - name: Validate agent workspaces and communication data
         run: python scripts/agent_workspace.py validate
       - name: Validate explicit semantic substrate
-        run: python scripts/semantic_validate.py
+        run: python scripts/semantic_validate.py --check-git
       - name: Run repository security hygiene audit
         run: python scripts/security_audit.py
       - name: Inspect goal graphs
